@@ -1,0 +1,35 @@
+{% extends "admin/change_form.html" %}
+
+{% block object-tools %}
+    {{ block.super }}
+        {% if original and original.id %}
+            <li>
+                <a href="{% url 'admin:wordsearch-download-pdf' original.id %}">
+                    📄 Download PDF
+                </a>
+            </li>
+
+            <li>
+                <a href="{% url 'admin:wordsearch-download-png' original.id %}">
+                    🖼️ Download PNG
+                </a>
+            </li>
+
+            <div style="margin-top: 10px; display: flex; gap: 10px;">
+                <a class="button"
+                href="{% url 'admin:wordsearch-generate-grid' original.id %}">
+                    Generate Grid
+                </a>
+
+                <a class="button"
+                href="{% url 'admin:wordsearch-generate-pdf' original.id %}">
+                    Generate PDF
+                </a>
+
+                <a class="button"
+                href="{% url 'admin:wordsearch-generate-png' original.id %}">
+                    Generate PNG
+                </a>
+            </div>
+        {% endif %}
+{% endblock %}

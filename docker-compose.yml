@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:15
+    container_name: byword_db
+    restart: always
+    env_file: .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    container_name: byword_backend
+    working_dir: /app
+    depends_on:
+      - db
+    # command: >
+    #   sh -c "python manage.py migrate &&
+    #         (python manage.py createsuperuser --noinput || true) &&
+    #         python manage.py runserver 0.0.0.0:8000"
+    command: /entrypoint.sh
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    env_file: .env
+
+  frontend:
+    build: ./frontend
+    container_name: byword_frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

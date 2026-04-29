@@ -1,5 +1,4 @@
 import os
-
 from reportlab.platypus import (
     SimpleDocTemplate,
     Table,
@@ -8,13 +7,45 @@ from reportlab.platypus import (
     Spacer,
     PageBreak
 )
-
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_LEFT
+from reportlab.lib.styles import getSampleStyleSheet
+
+# =========================
+# 🎨 CONFIGURAÇÕES
+# =========================
+CELL_SIZE = 22
+
+INTERSECTION_COLOR = colors.purple
+EXCESS_COLOR = colors.grey
+
+WORD_COLORS = [
+    colors.yellow,
+    colors.lightblue,
+    colors.lightgreen,
+    colors.pink,
+    colors.orange,
+    colors.lavender,
+    colors.beige,
+    colors.khaki,
+    colors.cyan,
+    colors.aquamarine,
+    colors.coral,
+    colors.gold,
+    colors.lightgrey,
+    colors.salmon,
+    colors.turquoise,
+    colors.violet,
+    colors.wheat,
+    colors.limegreen,
+    colors.skyblue,
+    colors.thistle,
+]
 
 
+# =========================
+# 📄 MAIN
+# =========================
 def generate_pdf(wordsearch):
     filename = f"{wordsearch.id}.pdf"
     filepath = os.path.join("media/pdfs", filename)
@@ -26,98 +57,125 @@ def generate_pdf(wordsearch):
 
     elements = []
 
-    # =========================================================
-    # 📄 PAGE 1 - CAÇA-PALAVRAS (SEM RESPOSTA)
-    # =========================================================
-    elements.append(Paragraph(wordsearch.name, styles['Title']))
-    elements.append(Spacer(1, 15))
+    # =========================
+    # 🧠 DADOS
+    # =========================
+    grid = wordsearch.grid
+    solution = wordsearch.solution
+    words = sorted([w.text for w in wordsearch.words.all()])
 
-    puzzle_grid = wordsearch.grid
+    # =========================
+    # 🎨 MAPEAR CORES DAS PALAVRAS
+    # =========================
+    word_color_map = {}
 
-    table1 = Table(puzzle_grid)
+    for i, word in enumerate(words):
+        if i < len(WORD_COLORS):
+            word_color_map[word] = WORD_COLORS[i]
+        else:
+            word_color_map[word] = EXCESS_COLOR
 
-    table1.setStyle(TableStyle([
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTSIZE', (0, 0), (-1, -1), 12),
-    ]))
+    # =========================
+    # 🧠 MAPEAR CÉLULAS → PALAVRAS
+    # =========================
+    cell_map = {}
 
-    words = [w.text for w in wordsearch.words.all()]
-    word_list_text = "<b>Word List:</b><br/>" + "<br/>".join(words)
-    word_style = ParagraphStyle(
-        name="WordList",
-        parent=styles["Normal"],
-        alignment=TA_LEFT,
-        leading=14
-    )
-    word_list = Paragraph(word_list_text, word_style)
-    # word_list = Paragraph(word_list_text, styles['Normal'])
+    for item in solution:
+        word = item["word"]
+        for r, c in item["positions"]:
+            cell_map.setdefault((r, c), []).append(word)
 
+    # =========================
+    # 🔧 FUNÇÃO GRID
+    # =========================
+    def build_table(grid_data, highlight=False):
+        table = Table(
+            grid_data,
+            colWidths=[CELL_SIZE] * len(grid_data[0]),
+            rowHeights=[CELL_SIZE] * len(grid_data)
+        )
 
-    layout = Table(
-        [
-            [table1, word_list]
-        ],
-        colWidths=[330, 230]
-    )
+        style = [
+            ("GRID", (0, 0), (-1, -1), 1, colors.black),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("FONTSIZE", (0, 0), (-1, -1), 14),
+        ]
 
-    layout.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('LEFTPADDING', (1, 0), (1, 0), 40),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-        ('LEFTPADDING', (0, 0), (0, 0), 10),
-        ('RIGHTPADDING', (0, 0), (0, 0), 10),
-    ]))
+        if highlight:
+            for (r, c), words_here in cell_map.items():
+                if len(words_here) == 1:
+                    color = word_color_map[words_here[0]]
+                else:
+                    color = INTERSECTION_COLOR
 
+                style.append(("BACKGROUND", (c, r), (c, r), color))
 
-    elements.append(layout)
+        table.setStyle(TableStyle(style))
+        return table
 
-    # quebra de página
-    elements.append(PageBreak())
+    # =========================
+    # 📝 WORD LIST (COM CORES)
+    # =========================
+    def build_word_list(colored=False):
+        data = [["Word List"]]
 
-    # =========================================================
-    # 📄 PAGE 2 - SOLUÇÃO (COM DESTAQUE)
-    # =========================================================
+        for word in words:
+            data.append([word])
 
-    solution_grid = wordsearch.grid
+        table = Table(data, colWidths=[140])
 
-    # 🔥 monta conjunto de posições que fazem parte das palavras
-    highlight = set()
+        style = [
+            # 🔥 título sem fundo
+            ("FONTNAME", (0, 0), (0, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (0, 0), 12),
+            ("BOTTOMPADDING", (0, 0), (0, 0), 10),
+            ("LINEBELOW", (0, 0), (0, 0), 1, colors.black),
 
-    for word in wordsearch.solution:
-        for r, c in word["positions"]:
-            highlight.add((r, c))
+            # 🔥 palavras
+            ("ALIGN", (0, 1), (-1, -1), "LEFT"),
+            ("FONTSIZE", (0, 1), (-1, -1), 11),
+            ("BOTTOMPADDING", (0, 1), (-1, -1), 4),
+        ]
 
-    table2 = Table(solution_grid)
+        # 🎨 aplicar cor por palavra
+        if colored:
+            for i, word in enumerate(words, start=1):
+                bg = word_color_map[word]
+                style.append(("BACKGROUND", (0, i), (0, i), bg))
 
-    style = [
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTSIZE', (0, 0), (-1, -1), 12),
-    ]
+        table.setStyle(TableStyle(style))
+        return table
 
-    # 🔥 aplica destaque apenas nas letras das palavras
-    for r in range(len(solution_grid)):
-        for c in range(len(solution_grid[r])):
-            if (r, c) in highlight:
-                style.append(
-                    ('BACKGROUND', (c, r), (c, r), colors.yellow)
-                )
-
-    table2.setStyle(TableStyle(style))
-
-    elements.append(table2)
-
-    # =========================================================
-    # 📄 LISTA DE PALAVRAS
-    # =========================================================
+    # =========================
+    # 📄 PÁGINA 1 (PUZZLE)
+    # =========================
+    elements.append(Paragraph(f"<b>{wordsearch.name}</b>", styles["Title"]))
     elements.append(Spacer(1, 20))
 
-    words = [w.text for w in wordsearch.words.all()]
+    layout1 = Table([
+        [build_table(grid, highlight=False), build_word_list(colored=False)]
+    ], colWidths=[300, 150])
 
-    elements.append(Paragraph("Palavras:", styles['Heading2']))
-    elements.append(Paragraph(", ".join(words), styles['Normal']))
+    elements.append(layout1)
 
+    elements.append(PageBreak())
+
+    # =========================
+    # 📄 PÁGINA 2 (SOLUÇÃO)
+    # =========================
+    elements.append(Paragraph(f"<b>{wordsearch.name} - Solution</b>", styles["Title"]))
+    elements.append(Spacer(1, 20))
+
+    layout2 = Table([
+        [build_table(grid, highlight=True), build_word_list(colored=True)]
+    ], colWidths=[300, 150])
+
+    elements.append(layout2)
+
+    # =========================
+    # 🚀 BUILD
+    # =========================
     doc.build(elements)
 
     return filename

@@ -73,6 +73,11 @@ class WordSearchAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.download_png),
                 name="wordsearch-download-png",
             ),
+            path(
+                "<int:wordsearch_id>/download-png-solution/",
+                self.admin_site.admin_view(self.download_png_solution),
+                name="wordsearch-download-png-solution",
+            ),
         ]
         return custom_urls + urls
 
@@ -113,3 +118,16 @@ class WordSearchAdmin(admin.ModelAdmin):
             messages.info(request, "PNG não existia e foi gerado automaticamente.")
 
         return FileResponse(open(file_path, "rb"), as_attachment=True, filename=f"{wordsearch_id}.png")
+    
+    def download_png_solution(self, request, wordsearch_id):
+        filepath = f"media/png/{wordsearch_id}s.png"
+
+        if not os.path.exists(filepath):
+            self.message_user(
+                request,
+                "Gere o PNG antes de baixar a solução.",
+                messages.ERROR
+            )
+            return redirect(f"../../{wordsearch_id}/change/")
+
+        return FileResponse(open(filepath, "rb"), as_attachment=True)

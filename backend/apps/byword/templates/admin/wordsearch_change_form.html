@@ -15,6 +15,12 @@
                 </a>
             </li>
 
+            <li>
+                <a href="{% url 'admin:wordsearch-download-png-solution' original.id %}">
+                    🧩 Download PNG (Solução)
+                </a>
+            </li>
+
             <div style="margin-top: 10px; display: flex; gap: 10px;">
                 <a class="button"
                 href="{% url 'admin:wordsearch-generate-grid' original.id %}">

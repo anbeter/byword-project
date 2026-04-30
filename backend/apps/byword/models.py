@@ -86,3 +86,25 @@ class Word(models.Model):
                 name='unique_word_per_wordsearch'
             )
         ]
+
+
+class ScrambleWord(models.Model):
+    titulo = models.CharField(max_length=70, null=True, blank=True)
+    texto_original = models.CharField(max_length=270)
+    texto_embaralhado = models.TextField(blank=True)
+
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        from .scrambleword.engine import embaralhar_texto
+
+        self.texto_embaralhado = embaralhar_texto(self.texto_original)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        # titulo = self.titulo or ''
+        # texto = self.texto_original
+        # return f"{titulo} - {texto}" if titulo else texto
+        return f"{self.titulo or ''} - {self.texto_original}"
+
+

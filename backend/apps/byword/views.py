@@ -2,12 +2,13 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import WordSearch
-from .serializers import WordSearchSerializer
+from .models import WordSearch, ScrambleWord
+from .serializers import WordSearchSerializer, ScrambleWordSerializer
 
 from .services.wordsearch import generate_grid
 from .services.pdf import generate_pdf
 from .services.png import generate_png
+
 
 
 def ensure_generated(wordsearch):
@@ -106,3 +107,8 @@ class WordSearchViewSet(viewsets.ModelViewSet):
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class ScrambleWordViewSet(viewsets.ModelViewSet):
+    queryset = ScrambleWord.objects.all().order_by('-criado_em')
+    serializer_class = ScrambleWordSerializer

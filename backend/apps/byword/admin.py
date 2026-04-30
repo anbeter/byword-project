@@ -1,18 +1,19 @@
 from django.contrib import admin, messages
 from django.urls import path
 from django.shortcuts import redirect
-from django.http import FileResponse, Http404
+from django.http import FileResponse
 from django.conf import settings
 
 import os
 
-from .models import WordSearch, Word
+from .models import WordSearch, Word, ScrambleWord
 from django.forms.models import BaseInlineFormSet
 from django.core.exceptions import ValidationError
 
 from .services.wordsearch import generate_grid
 from .services.pdf import generate_pdf
 from .services.png import generate_png
+
 
 class WordInlineFormSet(BaseInlineFormSet):
     def clean(self):
@@ -131,3 +132,11 @@ class WordSearchAdmin(admin.ModelAdmin):
             return redirect(f"../../{wordsearch_id}/change/")
 
         return FileResponse(open(filepath, "rb"), as_attachment=True)
+    
+
+
+@admin.register(ScrambleWord)
+class ScrambleWordAdmin(admin.ModelAdmin):
+    list_display = ('id', 'titulo', 'texto_original', 'texto_embaralhado', 'criado_em')
+    search_fields = ('titulo', 'texto_original')
+    readonly_fields = ('texto_embaralhado', 'criado_em')

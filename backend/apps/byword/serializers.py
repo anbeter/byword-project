@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import WordSearch, Word
+from .models import WordSearch, Word, ScrambleWord
 
 
 class WordSerializer(serializers.ModelSerializer):
@@ -21,4 +21,17 @@ class WordSearchSerializer(serializers.ModelSerializer):
             'grid',
             'solution',
             'words'
+        ]
+
+
+
+class ScrambleWordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ScrambleWord
+        fields = [
+            'id',
+            'titulo',
+            'texto_original',
+            'texto_embaralhado',
+            'criado_em'
         ]

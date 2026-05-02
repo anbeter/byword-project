@@ -1,0 +1,57 @@
+{% extends "admin/base_site.html" %}
+{% load schedule_extras %}
+{% block content %}
+<h1>Weekly Schedule</h1>
+
+<style>
+.calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+}
+
+.day {
+    border: 1px solid #ccc;
+    padding: 10px;
+    background: #f9f9f9;
+}
+
+.item {
+    margin-bottom: 8px;
+    padding: 5px;
+    border-radius: 5px;
+    font-size: 12px;
+}
+
+.class {
+    background-color: #d4edda;
+}
+
+.blocked {
+    background-color: #f8d7da;
+}
+</style>
+
+<div class="calendar">
+    {% for day_value, day_label in days %}
+        <div class="day">
+            <strong>{{ day_label }}</strong>
+
+            {% for item in schedule|get_item:day_value %}
+                <div class="item {{ item.type }}">
+                    <strong>{{ item.start_time }} - {{ item.end_time }}</strong><br>
+
+                    {% if item.type == "class" %}
+                        {{ item.class }}
+                    {% else %}
+                        {{ item.reason }}
+                    {% endif %}
+                </div>
+            {% empty %}
+                <p>No events</p>
+            {% endfor %}
+        </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

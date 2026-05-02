@@ -191,3 +191,11 @@ class ClassSchedule(TimeStampedModel):
                 raise ValidationError(
                     f"Conflict with blocked time: {block.start_time}"
                 )
+
+
+
+class WeeklyScheduleProxy(Class):
+    class Meta:
+        proxy = True
+        verbose_name = "Weekly Schedule"
+        verbose_name_plural = "Weekly Schedule"

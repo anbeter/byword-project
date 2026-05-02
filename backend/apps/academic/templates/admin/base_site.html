@@ -1,0 +1,8 @@
+{% block nav-global %}
+    {{ block.super }}
+    <div style="margin:10px 0;">
+        <a href="{% url 'admin:academic-schedule' %}" class="button">
+            📅 Schedule
+        </a>
+    </div>
+{% endblock %}

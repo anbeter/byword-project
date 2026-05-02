@@ -1,0 +1,230 @@
+{% extends "admin/base_site.html" %}
+{% load schedule_extras %}
+
+{% block content %}
+<h1>Weekly Schedule</h1>
+
+<style>
+.calendar {
+    display: flex;
+}
+
+/* ===== COLUNA DE HORÁRIO ===== */
+.time-column {
+    width: 80px;
+}
+
+.time-column .day-header {
+    text-align: center;
+    font-weight: bold;
+    background: #f0f0f0;
+    padding: 5px;
+}
+
+.time-column {
+    height: 600px;
+}
+
+.day-body {
+    position: relative;
+    /* height: 600px; */
+}
+
+.hour-line:last-child {
+    border-bottom: none;
+}
+
+.time-slot,
+.hour-line {
+    height: 60px;
+    border-bottom: 1px solid #eee;
+    font-size: 12px;
+    padding-top: 1px;
+}
+
+/* ===== COLUNAS DOS DIAS ===== */
+.day-column {
+    flex: 1;
+    border-left: 1px solid #ddd;
+}
+
+.day-header {
+    text-align: center;
+    font-weight: bold;
+    background: #f0f0f0;
+    padding: 5px;
+}
+
+
+/* ===== EVENTOS ===== */
+.event {
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    border-radius: 4px;
+    padding: 4px;
+    font-size: 12px;
+    overflow: hidden;
+}
+
+.class {
+    background: #d4edda;
+}
+
+.blocked {
+    background: #f8d7da;
+}
+
+.event a {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.event:hover {
+    opacity: 0.85;
+    cursor: pointer;
+}
+
+/* ===== BOTÃO + ===== */
+.add-btn {
+    position: absolute;
+    right: 5px;
+    font-size: 14px;
+    color: #bbb;
+    text-decoration: none;
+}
+
+.day-body:hover .add-btn {
+    color: #000;
+}
+
+/* ===== MODAL ===== */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.4);
+}
+
+.modal-content {
+    background: white;
+    margin: 5% auto;
+    padding: 10px;
+    width: 80%;
+    height: 80%;
+    border-radius: 8px;
+}
+
+.modal-content iframe {
+    width: 100%;
+    height: 95%;
+    border: none;
+}
+
+.close {
+    float: right;
+    font-size: 20px;
+    cursor: pointer;
+}
+</style>
+
+<div class="calendar">
+
+    <!-- ===== COLUNA DE HORÁRIOS ===== -->
+    <div class="time-column">
+
+        <div class="day-header">Time</div>
+
+        <div class="day-body">
+            {% for slot in times %}
+                <div class="time-slot">{{ slot.time }}</div>
+            {% endfor %}
+        </div>
+
+    </div>
+
+    <!-- ===== COLUNAS DOS DIAS ===== -->
+    {% for day_value, day_label in days %}
+        <div class="day-column">
+
+            <div class="day-header">{{ day_label }}</div>
+
+            <div class="day-body">
+
+                <!-- linhas -->
+                {% for slot in times %}
+                    <div class="hour-line"></div>
+                {% endfor %}
+
+                <!-- eventos -->
+                {% for item in grid|get_item:day_value %}
+                    <div class="event {{ item.type }}"
+                         style="top: {{ item.top }}px; height: {{ item.height }}px;">
+
+                        <a href="{{ item.url }}">
+                            <strong>{{ item.start }} - {{ item.end }}</strong><br>
+                            {{ item.label }}
+                        </a>
+
+                    </div>
+                {% endfor %}
+
+                <!-- botões + por hora -->
+                {% for slot in times %}
+                    {% if slot.time.hour not in occupied|get_item:day_value %}
+                        <a href="#"
+                        class="add-btn open-modal"
+                        style="top: {{ slot.top }}px;"
+                        data-url="/admin/academic/classschedule/add/?day={{ day_value }}&time={{ slot.time }}">
+                        ➕
+                        </a>
+                    {% endif %}
+                {% endfor %}
+
+            </div>
+
+        </div>
+    {% endfor %}
+
+</div>
+
+<!-- ===== MODAL ===== -->
+<div id="schedule-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <iframe id="modal-frame"></iframe>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const modal = document.getElementById("schedule-modal");
+    const frame = document.getElementById("modal-frame");
+    const close = document.querySelector(".close");
+
+    document.querySelectorAll(".open-modal").forEach(btn => {
+        btn.addEventListener("click", function (e) {
+            e.preventDefault();
+            frame.src = this.dataset.url;
+            modal.style.display = "block";
+        });
+    });
+
+    close.onclick = () => modal.style.display = "none";
+
+    window.onclick = function(e) {
+        if (e.target === modal) {
+            modal.style.display = "none";
+        }
+    };
+
+});
+</script>
+
+{% endblock %}

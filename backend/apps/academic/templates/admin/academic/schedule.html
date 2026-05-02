@@ -5,53 +5,100 @@
 
 <style>
 .calendar {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 10px;
+    display: flex;
 }
 
-.day {
-    border: 1px solid #ccc;
-    padding: 10px;
-    background: #f9f9f9;
+.time-column {
+    width: 60px;
 }
 
-.item {
-    margin-bottom: 8px;
-    padding: 5px;
-    border-radius: 5px;
+.time-slot {
+    height: 60px; /* 1h = 60px */
+    font-size: 12px;
+}
+
+.day-column {
+    flex: 1;
+    border-left: 1px solid #ddd;
+}
+
+.day-header {
+    text-align: center;
+    font-weight: bold;
+    background: #f0f0f0;
+}
+
+.day-body {
+    position: relative;
+    height: 600px; /* 10 horas × 60px */
+}
+
+.hour-line {
+    height: 60px;
+    border-bottom: 1px solid #eee;
+}
+
+.event {
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    border-radius: 4px;
+    padding: 4px;
     font-size: 12px;
 }
 
 .class {
-    background-color: #d4edda;
+    background: #d4edda;
 }
 
 .blocked {
-    background-color: #f8d7da;
+    background: #f8d7da;
 }
+
 </style>
 
 <div class="calendar">
+
+    <!-- Coluna de horários -->
+    <div class="time-column">
+        {% for hour in times %}
+            <div class="time-slot">{{ hour }}</div>
+        {% endfor %}
+    </div>
+
+    <!-- Colunas dos dias -->
     {% for day_value, day_label in days %}
-        <div class="day">
-            <strong>{{ day_label }}</strong>
+        <div class="day-column">
 
-            {% for item in schedule|get_item:day_value %}
-                <div class="item {{ item.type }}">
-                    <strong>{{ item.start_time }} - {{ item.end_time }}</strong><br>
+            <div class="day-header">{{ day_label }}</div>
 
-                    {% if item.type == "class" %}
-                        {{ item.class }}
-                    {% else %}
-                        {{ item.reason }}
-                    {% endif %}
-                </div>
-            {% empty %}
-                <p>No events</p>
-            {% endfor %}
+            <div class="day-body">
+
+                {% for t in times %}
+                    <div class="hour-line"></div>
+                {% endfor %}
+
+                <!-- Eventos -->
+                {% for t in times %}
+                    {% for item in grid|get_item:t|get_item:day_value %}
+                        <div class="event {{ item.type }}"
+                             style="
+                                top: {{ item.top }}px;
+                                height: {{ item.height }}px;
+                             ">
+
+                            <a href="{{ item.url }}">
+                                {{ item.label }}
+                            </a>
+
+                        </div>
+                    {% endfor %}
+                {% endfor %}
+
+            </div>
         </div>
     {% endfor %}
+
 </div>
 
 {% endblock %}

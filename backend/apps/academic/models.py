@@ -137,48 +137,35 @@ class ClassSchedule(TimeStampedModel):
 
 
     def clean(self):
+        # evita erro no admin inline (classe ainda não salva)
+        if not self.class_obj_id or not self.start_time or not self.duration_minutes:
+            return
+
+        current_start, current_end = self.get_start_end()
+
+        # ======================
+        # 🔹 CONFLITO COM OUTRAS AULAS
+        # ======================
         qs = ClassSchedule.objects.filter(
-            class_obj=self.class_obj,
+            class_obj_id=self.class_obj_id,
             day_of_week=self.day_of_week,
             is_active=True
         )
 
         if self.pk:
             qs = qs.exclude(pk=self.pk)
-
-        current_start, current_end = self.get_start_end()
 
         for obj in qs:
             obj_start, obj_end = obj.get_start_end()
 
             if current_start < obj_end and obj_start < current_end:
                 raise ValidationError(
-                    f"Schedule conflict with {obj.start_time} - {obj.end_time}"
+                    f"Conflict with class: {obj.start_time} - {obj.end_time}"
                 )
 
-
-    def clean(self):
-        from django.core.exceptions import ValidationError
-
-        current_start, current_end = self.get_start_end()
-
-        # 🔹 conflito com outras turmas
-        qs = ClassSchedule.objects.filter(
-            class_obj=self.class_obj,
-            day_of_week=self.day_of_week,
-            is_active=True
-        )
-
-        if self.pk:
-            qs = qs.exclude(pk=self.pk)
-
-        for obj in qs:
-            obj_start, obj_end = obj.get_start_end()
-
-            if current_start < obj_end and obj_start < current_end:
-                raise ValidationError("Conflict with another class schedule.")
-
-        # 🔹 conflito com bloqueios
+        # ======================
+        # 🔹 CONFLITO COM BLOQUEIOS
+        # ======================
         blocked_qs = BlockedSchedule.objects.filter(
             day_of_week=self.day_of_week,
             is_active=True
@@ -189,7 +176,7 @@ class ClassSchedule(TimeStampedModel):
 
             if current_start < block_end and block_start < current_end:
                 raise ValidationError(
-                    f"Conflict with blocked time: {block.start_time}"
+                    f"Conflict with blocked time: {block.start_time} - {block_end.time()}"
                 )
 
 
@@ -199,3 +186,6 @@ class WeeklyScheduleProxy(Class):
         proxy = True
         verbose_name = "Weekly Schedule"
         verbose_name_plural = "Weekly Schedule"
+        permissions = [
+            ("view_schedule", "Can view weekly schedule"),
+        ]

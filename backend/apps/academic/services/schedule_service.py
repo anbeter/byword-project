@@ -19,7 +19,7 @@ def time_to_minutes(t):
 
 def generate_time_slots():
     slots = []
-    for index, hour in enumerate(range(8, 19)):
+    for index, hour in enumerate(range(8, 18)):
         slots.append({
             "time": time(hour, 0),
             "top": index * 62  # 👈 AQUI resolve tudo
@@ -53,6 +53,7 @@ def get_weekly_schedule_grid():
         top = ((start_min - start_day_minutes)+15) * PIXELS_PER_MINUTE
         top +=2
         height = (end_min - start_min) * PIXELS_PER_MINUTE
+        height -= 7
 
         grid[item.day_of_week].append({
             "type": "class",
@@ -88,6 +89,7 @@ def get_weekly_schedule_grid():
         top = (start_min - start_day_minutes) * PIXELS_PER_MINUTE
         top +=5
         height = (end_min - start_min) * PIXELS_PER_MINUTE
+        height -= 7
 
         grid[block.day_of_week].append({
             "type": "blocked",

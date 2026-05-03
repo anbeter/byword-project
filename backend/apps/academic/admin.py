@@ -130,6 +130,9 @@ class ScheduleAdmin(admin.ModelAdmin):
 @admin.register(WeeklyScheduleProxy)
 class WeeklyScheduleAdmin(admin.ModelAdmin):
 
+    def has_view_permission(self, request, obj=None):
+        return request.user.has_perm("academic.view_classschedule")
+
     def changelist_view(self, request, extra_context=None):
         from django.shortcuts import redirect
         return redirect("admin:academic-schedule")

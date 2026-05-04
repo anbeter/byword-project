@@ -10,3 +10,4 @@ python-dotenv==1.2.2
 reportlab==4.4.10
 sqlparse==0.5.5
 deep-translator
+openpyxl

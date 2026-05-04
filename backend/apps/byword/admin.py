@@ -11,6 +11,7 @@ from django.db.models import Min
 
 import os
 import csv
+from openpyxl import Workbook
 
 from .models import WordSearch, Word, ScrambleWord
 from .models import Music, LessonText, Dictionary, DictionaryOccurrence
@@ -236,7 +237,7 @@ class DictionaryAdmin(admin.ModelAdmin):
         "created_at",
     )
 
-    actions = ["translate_missing","export_dictionary_csv"]
+    actions = ["translate_missing","export_dictionary_csv","export_dictionary_xlsx"]
 
     def translate_missing(self, request, queryset):
         count = 0
@@ -257,6 +258,44 @@ class DictionaryAdmin(admin.ModelAdmin):
         )
 
     translate_missing.short_description = "Translate missing words"
+
+    def export_dictionary_xlsx(modeladmin, request, queryset):
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Dictionary"
+
+        # header
+        ws.append([
+            "Word",
+            "Translation",
+            "First Lesson",
+            "Origin",
+        ])
+
+        for obj in queryset:
+            occ = obj.occurrences.order_by("number_lesson").first()
+
+            first_lesson = occ.number_lesson if occ else ""
+            origin = occ.origin if occ else ""
+
+            ws.append([
+                obj.verb_en,
+                obj.translation,
+                first_lesson,
+                origin,
+            ])
+
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        filename = f'dictionary_{request.GET.get("first_lesson", "all")}.xlsx'
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+        wb.save(response)
+        return response
+
+    export_dictionary_xlsx.short_description = "Export XLSX (filtered)"
 
     def export_dictionary_csv(modeladmin, request, queryset):
         response = HttpResponse(content_type="text/csv")
@@ -294,7 +333,6 @@ class DictionaryAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         return qs.annotate(first_lesson=Min("occurrences__number_lesson"))
 
-    search_fields = ("verb_en", "translation")
     ordering = ("verb_en",)
 
     inlines = [DictionaryOccurrenceInline]
@@ -314,10 +352,12 @@ class DictionaryAdmin(admin.ModelAdmin):
     
     first_occurrence.short_description = "First occurrence"
 
+    search_fields = ("verb_en", "translation")
+
     # first_lesson.short_description = "First Lesson"
     # search_fields = ("verb_en", "translation")
     # readonly_fields = ("content_type", "object_id", "content_object", "created_at")
     # ordering = ("number_lesson", "verb_en",)
     list_per_page = 100
-    list_filter = ("verb_en", "translation", FirstLessonFilter)
+    list_filter = (FirstLessonFilter,)
 

@@ -91,10 +91,6 @@ def sync_dictionary(*, old_text, new_text, instance, origin, number_lesson):
 
     for word in added_words:
         dictionary, created = Dictionary.objects.get_or_create(verb_en=word)
-        if len(word) <= 2:
-            continue
-        if word in STOP_WORDS:
-            continue
 
         if created and not dictionary.translation:
 

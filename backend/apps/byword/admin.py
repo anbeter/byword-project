@@ -260,8 +260,8 @@ class DictionaryAdmin(admin.ModelAdmin):
 
     def export_dictionary_csv(modeladmin, request, queryset):
         response = HttpResponse(content_type="text/csv")
-        response["Content-Disposition"] = 'attachment; filename="dictionary.csv"'
-
+        filename = f"dictionary_lesson_{request.GET.get('first_lesson', 'all')}.csv"
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
         writer = csv.writer(response)
 
         # header
@@ -318,6 +318,6 @@ class DictionaryAdmin(admin.ModelAdmin):
     # search_fields = ("verb_en", "translation")
     # readonly_fields = ("content_type", "object_id", "content_object", "created_at")
     # ordering = ("number_lesson", "verb_en",)
-    list_per_page = 50
+    list_per_page = 100
     list_filter = ("verb_en", "translation", FirstLessonFilter)
 

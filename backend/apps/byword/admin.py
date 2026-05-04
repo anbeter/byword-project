@@ -2,12 +2,15 @@ from django.contrib import admin, messages
 from django.contrib.admin import SimpleListFilter
 from django.urls import path
 from django.shortcuts import redirect
-from django.http import FileResponse
+
+from django.http import FileResponse, HttpResponse
+
 from django.conf import settings
 from django import forms
 from django.db.models import Min
 
 import os
+import csv
 
 from .models import WordSearch, Word, ScrambleWord
 from .models import Music, LessonText, Dictionary, DictionaryOccurrence
@@ -221,7 +224,6 @@ class FirstLessonFilter(SimpleListFilter):
 
         return queryset
 
-
 # =========================
 # DICTIONARY
 # =========================
@@ -234,7 +236,7 @@ class DictionaryAdmin(admin.ModelAdmin):
         "created_at",
     )
 
-    actions = ["translate_missing"]
+    actions = ["translate_missing","export_dictionary_csv"]
 
     def translate_missing(self, request, queryset):
         count = 0
@@ -255,6 +257,38 @@ class DictionaryAdmin(admin.ModelAdmin):
         )
 
     translate_missing.short_description = "Translate missing words"
+
+    def export_dictionary_csv(modeladmin, request, queryset):
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="dictionary.csv"'
+
+        writer = csv.writer(response)
+
+        # header
+        writer.writerow([
+            "Word",
+            "Translation",
+            "First Lesson",
+            "Origin",
+        ])
+
+        for obj in queryset:
+            # pegar primeira ocorrência
+            occ = obj.occurrences.order_by("number_lesson").first()
+
+            first_lesson = occ.number_lesson if occ else ""
+            origin = occ.origin if occ else ""
+
+            writer.writerow([
+                obj.verb_en,
+                obj.translation,
+                first_lesson,
+                origin,
+            ])
+
+        return response
+
+    export_dictionary_csv.short_description = "Export CSV (filtered)"
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)

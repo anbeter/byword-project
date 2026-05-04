@@ -4,8 +4,7 @@ from apps.byword.services.dictionary import sync_dictionary
 
 def rebuild_dictionary():
     print("Cleaning occurrences...")
-    DictionaryOccurrence.objects.all().delete()
-
+    Dictionary.objects.filter(occurrences__isnull=True).delete()
     print("Rebuilding from Music...")
     for obj in Music.objects.all():
         sync_dictionary(

@@ -1,18 +1,24 @@
 from django.contrib import admin, messages
+from django.contrib.admin import SimpleListFilter
 from django.urls import path
 from django.shortcuts import redirect
 from django.http import FileResponse
 from django.conf import settings
+from django import forms
+from django.db.models import Min
 
 import os
 
 from .models import WordSearch, Word, ScrambleWord
+from .models import Music, LessonText, Dictionary, DictionaryOccurrence
+
 from django.forms.models import BaseInlineFormSet
 from django.core.exceptions import ValidationError
 
 from .services.wordsearch import generate_grid
 from .services.pdf import generate_pdf
 from .services.png import generate_png
+from apps.byword.services.dictionary import suggest_translation
 
 
 class WordInlineFormSet(BaseInlineFormSet):
@@ -140,3 +146,144 @@ class ScrambleWordAdmin(admin.ModelAdmin):
     list_display = ('id', 'titulo', 'texto_original', 'texto_embaralhado', 'criado_em')
     search_fields = ('titulo', 'texto_original')
     readonly_fields = ('texto_embaralhado', 'criado_em')
+
+
+@admin.register(Music)
+class MusicAdmin(admin.ModelAdmin):
+    list_display = ("title", "author", "number_lesson")
+    search_fields = ("title", "author")
+    list_filter = ("number_lesson",)
+
+    readonly_fields = ("lyrics_spaces",)
+
+
+# =========================
+# LessonText
+# =========================
+
+class LessonTextAdminForm(forms.ModelForm):
+    class Meta:
+        model = LessonText
+        fields = "__all__"
+        widgets = {
+            "text": forms.Textarea(attrs={"rows": 20, "cols": 220}),
+        }
+
+@admin.register(LessonText)
+class LessonTextAdmin(admin.ModelAdmin):
+    list_display = ("title", "number_lesson")
+    search_fields = ("title", "text")
+    list_filter = ("number_lesson",)
+    ordering = ("number_lesson",)
+
+
+class DictionaryOccurrenceInline(admin.TabularInline):
+    model = DictionaryOccurrence
+    extra = 0
+    readonly_fields = (
+        "origin",
+        "number_lesson",
+        "content_type",
+        "object_id",
+        "created_at",
+    )
+
+    can_delete = False
+    ordering = ("number_lesson",)
+
+
+class FirstLessonFilter(SimpleListFilter):
+    title = "First Lesson"
+    parameter_name = "first_lesson"
+
+    def lookups(self, request, model_admin):
+        from apps.byword.models import DictionaryOccurrence
+
+        lessons = (
+            DictionaryOccurrence.objects
+            .values_list("number_lesson", flat=True)
+            .distinct()
+            .order_by("number_lesson")
+        )
+
+        return [(str(l), f"Lesson {l}") for l in lessons]
+
+
+    def queryset(self, request, queryset):
+        queryset = queryset.annotate(
+            first_lesson=Min("occurrences__number_lesson")
+        )
+
+        value = self.value()
+
+        if value:
+            return queryset.filter(first_lesson=int(value))
+
+        return queryset
+
+
+# =========================
+# DICTIONARY
+# =========================
+@admin.register(Dictionary)
+class DictionaryAdmin(admin.ModelAdmin):
+    list_display = (
+        "verb_en",
+        "translation",
+        "first_occurrence",
+        "created_at",
+    )
+
+    actions = ["translate_missing"]
+
+    def translate_missing(self, request, queryset):
+        count = 0
+
+        for obj in queryset:
+            if not obj.translation:
+                translation = suggest_translation(obj.verb_en)
+
+                if translation:
+                    obj.translation = translation
+                    obj.save()
+                    count += 1
+
+        self.message_user(
+            request,
+            f"{count} words translated.",
+            messages.SUCCESS
+        )
+
+    translate_missing.short_description = "Translate missing words"
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.annotate(first_lesson=Min("occurrences__number_lesson"))
+
+    search_fields = ("verb_en", "translation")
+    ordering = ("verb_en",)
+
+    inlines = [DictionaryOccurrenceInline]
+
+    def first_occurrence(self, obj):
+        # occ = obj.occurrences.order_by("number_lesson").first()
+        # if not occ:
+        #     return "-"
+        # return f"{occ.number_lesson} ({occ.origin})"
+        if obj.first_lesson:
+            occ = obj.occurrences.filter(number_lesson=obj.first_lesson).first()
+            if occ:
+                return f"{occ.number_lesson} ({occ.origin})"
+        return "-"
+    
+    first_occurrence.admin_order_field = "first_lesson"
+    
+    first_occurrence.short_description = "First occurrence"
+
+    # first_lesson.short_description = "First Lesson"
+    # search_fields = ("verb_en", "translation")
+    # readonly_fields = ("content_type", "object_id", "content_object", "created_at")
+    # ordering = ("number_lesson", "verb_en",)
+    list_per_page = 50
+    list_filter = ("verb_en", "translation", FirstLessonFilter)
+

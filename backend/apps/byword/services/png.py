@@ -16,6 +16,10 @@ WORD_COLORS = [
     "violet", "wheat", "limegreen", "skyblue", "thistle",
 ]
 
+# GRID_LINE_COLOR ="black" | "#BBBBBB" #linhas do grid mais claras   #DDDDDD #bem claras
+GRID_LINE_COLOR = "#BBBBBB"
+
+grid_top = 40
 
 def generate_png(wordsearch):
     os.makedirs("media/png", exist_ok=True)
@@ -43,7 +47,8 @@ def generate_png(wordsearch):
     # =========================
     # WORD LIST
     # =========================
-    words = sorted([w.text for w in wordsearch.words.all()])
+    # words = sorted([w.text for w in wordsearch.words.all()])
+    words = sorted([w.text.upper() for w in wordsearch.words.all()])
 
     word_color_map = {}
     for i, word in enumerate(words):
@@ -58,9 +63,9 @@ def generate_png(wordsearch):
     cell_map = {}
 
     for item in wordsearch.solution:
-        word = item["word"]
+        word = item["word"].upper()
         for r, c in item["positions"]:
-            cell_map.setdefault((r, c), []).append(word)
+            cell_map.setdefault((r, c), []).append(word.upper())
 
     # =========================
     # DIMENSÕES
@@ -81,15 +86,15 @@ def generate_png(wordsearch):
         # 🔥 título centralizado no GRID (não na imagem inteira)
         grid_center_x = MARGIN + (grid_width // 2)
 
-        draw.text(
-            (grid_center_x, 30),
-            wordsearch.name,
-            fill="black",
-            font=font_title,
-            anchor="mm"
-        )
+        # draw.text(
+        #     (grid_center_x, 30),
+        #     wordsearch.name,
+        #     fill="black",
+        #     font=font_title,
+        #     anchor="mm"
+        # )
 
-        grid_top = 80
+        grid_top = 40
 
         x_offset = grid_width + MARGIN * 2
         y_offset = grid_top
@@ -130,11 +135,11 @@ def generate_png(wordsearch):
     for r in range(rows):
         for c in range(cols):
             x = c * CELL_SIZE + MARGIN
-            y = r * CELL_SIZE + 80
+            y = r * CELL_SIZE + grid_top
 
             draw1.rectangle(
                 [x, y, x + CELL_SIZE, y + CELL_SIZE],
-                outline="black"
+                outline=GRID_LINE_COLOR     ##BBBBBB
             )
 
             letter = grid[r][c]
@@ -161,25 +166,26 @@ def generate_png(wordsearch):
     for r in range(rows):
         for c in range(cols):
             x = c * CELL_SIZE + MARGIN
-            y = r * CELL_SIZE + 80
+            y = r * CELL_SIZE + grid_top
 
             cell_words = cell_map.get((r, c), [])
 
             if cell_words:
                 if len(cell_words) == 1:
-                    color = word_color_map[cell_words[0]]
+                    # color = word_color_map[cell_words[0]]
+                    color = word_color_map.get(cell_words[0], EXCESS_COLOR)
                 else:
                     color = INTERSECTION_COLOR
 
                 draw2.rectangle(
                     [x, y, x + CELL_SIZE, y + CELL_SIZE],
                     fill=color,
-                    outline="black"
+                    outline=GRID_LINE_COLOR
                 )
             else:
                 draw2.rectangle(
                     [x, y, x + CELL_SIZE, y + CELL_SIZE],
-                    outline="black"
+                    outline=GRID_LINE_COLOR
                 )
 
             letter = grid[r][c]

@@ -1,6 +1,6 @@
 import re
 from django.contrib.contenttypes.models import ContentType
-from apps.byword.models import Dictionary
+from apps.byword.models import Dictionary, Lesson
 
 import re
 from django.contrib.contenttypes.models import ContentType
@@ -22,20 +22,18 @@ def extract_words(text):
     - símbolos
     - números
     """
-    STOP_WORDS = {
-        "the", "a", "an", "of", "to", "in", "on", "at", "for",
-        "and", "or", "but", "is", "are", "was", "were", "be",
-        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", 
-        "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", 
-        "u", "v", "w", "x", "y", "z"
-    }
-    # words = re.findall(r"[a-zA-ZÀ-ÿ']+", text)
-    # return set(normalize_word(w) for w in words if w)
-    words = set(re.findall(r"\b\w+\b", text.lower()))
-    return {
-        w for w in words
-        if len(w) > 2 and w not in STOP_WORDS
-    }
+
+    if not text:
+        return set()
+
+    # normaliza travessões
+    text = text.replace("–", " ").replace("—", " ")
+
+    # captura palavras com letras + apóstrofo interno
+    words = re.findall(r"[A-Za-zÀ-ÿ']+", text)
+
+    # lowercase final padronizado
+    return {w.lower().strip() for w in words if w.strip()}
 
 
 ## google translate
@@ -46,15 +44,29 @@ def suggest_translation(word):
     except Exception:
         return ""
 
+def translate_word_if_needed(dictionary):
+    """
+    Traduz a palavra apenas se ainda não tiver tradução
+    """
+    if dictionary.translation:
+        return dictionary
+
+    try:
+        translation = GoogleTranslator(source='en', target='pt').translate(dictionary.verb_en)
+        dictionary.translation = translation
+        dictionary.save(update_fields=["translation"])
+    except Exception:
+        pass
+
+    return dictionary
+
 # =========================
 # SYNC PRINCIPAL
 # =========================
-def sync_dictionary(*, old_text, new_text, instance, origin, number_lesson):
+def sync_dictionary(*, old_text, new_text, instance, origin, lesson):
     """
     Sincroniza o dicionário baseado na diferença entre textos
     """
-
-
 
     old_words = extract_words(old_text or "")
     new_words = extract_words(new_text or "")
@@ -81,23 +93,21 @@ def sync_dictionary(*, old_text, new_text, instance, origin, number_lesson):
         ).delete()
 
         # 🔥 se não sobrou ocorrência → remove do dicionário
-        if not dictionary.occurrences.exists():
+        # if not dictionary.occurrences.exists():
+        if not DictionaryOccurrence.objects.filter(dictionary=dictionary).exists():
             dictionary.delete()
 
     # =========================
     # ADICIONAR NOVAS PALAVRAS
     # =========================
-    translated_cache = {}
+    # translated_cache = {}
+
+    # 🔥 OPCIONAL: tradução automática (DESLIGADO)
+    # if created:
+    #     translate_word_if_needed(dictionary)
 
     for word in added_words:
         dictionary, created = Dictionary.objects.get_or_create(verb_en=word)
-
-        if created and not dictionary.translation:
-
-            if word not in translated_cache:
-                translated_cache[word] = suggest_translation(word)
-
-            dictionary.translation = translated_cache[word]
 
         DictionaryOccurrence.objects.get_or_create(
             dictionary=dictionary,
@@ -105,9 +115,9 @@ def sync_dictionary(*, old_text, new_text, instance, origin, number_lesson):
             object_id=instance.id,
             defaults={
                 "origin": origin,
-                "number_lesson": number_lesson,
+                "lesson": lesson,
             }
         )
 
-        if created and dictionary.translation:
-            dictionary.save()
+        # if created and dictionary.translation:
+        #     dictionary.save()

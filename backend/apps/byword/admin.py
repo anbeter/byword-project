@@ -1,6 +1,6 @@
 from django.contrib import admin, messages
 from django.contrib.admin import SimpleListFilter
-from django.urls import path
+from django.urls import path, reverse
 from django.shortcuts import redirect
 
 from django.http import FileResponse, HttpResponse
@@ -13,7 +13,7 @@ import os
 import csv
 from openpyxl import Workbook
 
-from .models import WordSearch, Word, ScrambleWord
+from .models import Lesson, WordSearch, Word, ScrambleWord
 from .models import Music, LessonText, Dictionary, DictionaryOccurrence
 
 from django.forms.models import BaseInlineFormSet
@@ -23,6 +23,22 @@ from .services.wordsearch import generate_grid
 from .services.pdf import generate_pdf
 from .services.png import generate_png
 from apps.byword.services.dictionary import suggest_translation
+from apps.byword.services.wordsearch import generate_grid
+
+
+@admin.register(Lesson)
+class LessonAdmin(admin.ModelAdmin):
+    list_display = ("number", "name")
+    ordering = ("number",)
+    search_fields = ("name",)
+
+    def musics_count(self, obj):
+        return obj.musics.count()
+    musics_count.short_description = "Musics"
+
+    def texts_count(self, obj):
+        return obj.texts.count()
+    texts_count.short_description = "Texts"
 
 
 class WordInlineFormSet(BaseInlineFormSet):
@@ -154,9 +170,9 @@ class ScrambleWordAdmin(admin.ModelAdmin):
 
 @admin.register(Music)
 class MusicAdmin(admin.ModelAdmin):
-    list_display = ("title", "author", "number_lesson")
+    list_display = ("title", "author", "lesson")
     search_fields = ("title", "author")
-    list_filter = ("number_lesson",)
+    list_filter = ("lesson__number",)
 
     readonly_fields = ("lyrics_spaces",)
 
@@ -173,27 +189,38 @@ class LessonTextAdminForm(forms.ModelForm):
             "text": forms.Textarea(attrs={"rows": 20, "cols": 220}),
         }
 
+class LessonNumberMixin:
+    def lesson_number(self, obj):
+        return obj.lesson.number if obj.lesson else "-"
+    
+    lesson_number.short_description = "Lesson"
+    lesson_number.admin_order_field = "lesson__number"
+
 @admin.register(LessonText)
-class LessonTextAdmin(admin.ModelAdmin):
-    list_display = ("title", "number_lesson")
-    search_fields = ("title", "text")
-    list_filter = ("number_lesson",)
-    ordering = ("number_lesson",)
+class LessonTextAdmin(LessonNumberMixin, admin.ModelAdmin):
+    list_display = ("lesson", "lesson_number")
+    search_fields = ("lesson",)
+    list_filter = ("lesson",)
+    ordering = ("lesson__number",)
+
+    def lesson_number(self, obj):
+        return obj.lesson.number if obj.lesson else "-"
+    lesson_number.short_description = "Lesson"
+    lesson_number.admin_order_field = "lesson__number"
 
 
 class DictionaryOccurrenceInline(admin.TabularInline):
     model = DictionaryOccurrence
     extra = 0
-    readonly_fields = (
-        "origin",
-        "number_lesson",
-        "content_type",
-        "object_id",
-        "created_at",
-    )
 
+    readonly_fields = ("lesson", "lesson_number", "origin", "content_object")
+    ordering = ("lesson__number",)
+
+    def lesson_number(self, obj):
+        return obj.lesson.number if obj.lesson else "-"
     can_delete = False
-    ordering = ("number_lesson",)
+    lesson_number.short_description = "Lesson"
+    lesson_number.admin_order_field = "lesson__number"
 
 
 class FirstLessonFilter(SimpleListFilter):
@@ -205,9 +232,9 @@ class FirstLessonFilter(SimpleListFilter):
 
         lessons = (
             DictionaryOccurrence.objects
-            .values_list("number_lesson", flat=True)
+            .values_list("lesson__number", flat=True)
             .distinct()
-            .order_by("number_lesson")
+            .order_by("lesson__number")
         )
 
         return [(str(l), f"Lesson {l}") for l in lessons]
@@ -215,7 +242,7 @@ class FirstLessonFilter(SimpleListFilter):
 
     def queryset(self, request, queryset):
         queryset = queryset.annotate(
-            first_lesson=Min("occurrences__number_lesson")
+            first_lesson=Min("occurrences__lesson__number")
         )
 
         value = self.value()
@@ -237,7 +264,28 @@ class DictionaryAdmin(admin.ModelAdmin):
         "created_at",
     )
 
-    actions = ["translate_missing","export_dictionary_csv","export_dictionary_xlsx"]
+    actions = [
+        "translate_missing",
+        "export_dictionary_csv",
+        "export_dictionary_xlsx",
+        "create_scramble_from_words",
+        "create_wordsearch_from_words",
+        "rebuild_dictionary_from_lessons"
+    ]
+
+    def rebuild_dictionary_from_lessons(modeladmin, request, queryset):
+        from apps.byword.services.dictionary import sync_dictionary
+
+        for lt in LessonText.objects.all().order_by("lesson__number"):
+            sync_dictionary(
+                old_text="",
+                new_text=lt.text,
+                instance=lt,
+                origin="lesson_text",
+                lesson=lt.lesson
+            )
+
+        modeladmin.message_user(request, "Dictionary rebuilt from all lessons.")
 
     def translate_missing(self, request, queryset):
         count = 0
@@ -273,9 +321,9 @@ class DictionaryAdmin(admin.ModelAdmin):
         ])
 
         for obj in queryset:
-            occ = obj.occurrences.order_by("number_lesson").first()
+            occ = obj.occurrences.order_by("lesson__number").first()
 
-            first_lesson = occ.number_lesson if occ else ""
+            first_lesson = occ.lesson.number if occ else ""
             origin = occ.origin if occ else ""
 
             ws.append([
@@ -313,9 +361,9 @@ class DictionaryAdmin(admin.ModelAdmin):
 
         for obj in queryset:
             # pegar primeira ocorrência
-            occ = obj.occurrences.order_by("number_lesson").first()
+            occ = obj.occurrences.order_by("lesson__number").first()
 
-            first_lesson = occ.number_lesson if occ else ""
+            first_lesson = occ.lesson.number if occ else ""
             origin = occ.origin if occ else ""
 
             writer.writerow([
@@ -331,33 +379,143 @@ class DictionaryAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.annotate(first_lesson=Min("occurrences__number_lesson"))
+        return qs.annotate(first_lesson=Min("occurrences__lesson__number"))
 
     ordering = ("verb_en",)
 
     inlines = [DictionaryOccurrenceInline]
 
     def first_occurrence(self, obj):
-        # occ = obj.occurrences.order_by("number_lesson").first()
-        # if not occ:
-        #     return "-"
-        # return f"{occ.number_lesson} ({occ.origin})"
         if obj.first_lesson:
-            occ = obj.occurrences.filter(number_lesson=obj.first_lesson).first()
+            occ = next(
+                (o for o in obj.occurrences.all() if o.lesson.number == obj.first_lesson),
+                None
+            )
             if occ:
-                return f"{occ.number_lesson} ({occ.origin})"
+                return f"{occ.lesson.number} ({occ.origin})"
         return "-"
     
     first_occurrence.admin_order_field = "first_lesson"
     
     first_occurrence.short_description = "First occurrence"
 
+
+    def create_scramble_from_words(modeladmin, request, queryset):
+        # from apps.scrambleword.models import ScrambleWord  # ajuste se necessário
+
+        if not queryset.exists():
+            modeladmin.message_user(request, "No words selected.", level="error")
+            return
+
+        # pegar lição (menor ocorrência)
+        queryset = queryset.annotate(
+            first_lesson=Min("occurrences__lesson__number")
+        )
+
+        lesson = min([
+            obj.first_lesson for obj in queryset if obj.first_lesson
+        ])
+
+        words = [obj.verb_en for obj in queryset]
+
+        text = " ".join(words)
+
+        scramble = ScrambleWord.objects.create(
+            title=f"Lesson {lesson}",
+            text_original=text
+        )
+
+        messages.success(request, "ScrambleWord criado com sucesso.")
+
+        return redirect(f"/admin/scrambleword/scrambleword/{scramble.id}/change/")
+
+    create_scramble_from_words.short_description = "Create ScrambleWords from selection"
+
+    def create_wordsearch_from_words(modeladmin, request, queryset):
+        if not queryset.exists():
+            modeladmin.message_user(request, "No words selected.", level="error")
+            return
+
+        # 🔹 limitar quantidade de palavras
+        unique_words = set(obj.verb_en.strip().lower() for obj in queryset)
+        total_words = len(unique_words)
+
+        if total_words < 3 or total_words > 23:
+            modeladmin.message_user(
+                request,
+                f"Select between 3 and 22 word (currently: {total_words}).",
+                level="error"
+            )
+            return
+
+        queryset = queryset.annotate(
+            first_lesson=Min("occurrences__lesson__number")
+        )
+
+        lessons = [obj.first_lesson for obj in queryset if obj.first_lesson]
+
+        if not lessons:
+            modeladmin.message_user(request, "No lesson found.", level="error")
+            return
+
+        if len(set(lessons)) > 1:
+            modeladmin.message_user(
+                request,
+                "Select words from only one lesson.",
+                level="error"
+            )
+            return
+
+        lesson = min(lessons)
+        lesson_obj = Lesson.objects.filter(number=lesson).first()
+
+        # 🔹 cria WordSearch
+        wordsearch = WordSearch.objects.create(
+            name=f"Lesson {lesson}",
+            lesson=lesson_obj
+        )
+
+        # 🔹 cria Words
+        seen = set()
+        words_to_create = []
+
+        for obj in queryset:
+            word = obj.verb_en.strip().upper()
+
+            if word in seen:
+                continue
+            seen.add(word)
+
+            words_to_create.append(
+                Word(
+                    wordsearch=wordsearch,
+                    text=word.upper()
+                )
+            )
+
+        Word.objects.bulk_create(words_to_create)
+
+        # 🔥 AQUI É O PONTO PRINCIPAL
+        # wordsearch.generate_grid()
+        generate_grid(wordsearch)
+        wordsearch.save(update_fields=["grid", "solution"])
+
+        url = reverse(
+            f"admin:{wordsearch._meta.app_label}_{wordsearch._meta.model_name}_change",
+            args=[wordsearch.id]
+        )
+
+        messages.success(request, "WordSearch criado com sucesso.")
+
+        return redirect(url)
+        
+
     search_fields = ("verb_en", "translation")
 
     # first_lesson.short_description = "First Lesson"
     # search_fields = ("verb_en", "translation")
     # readonly_fields = ("content_type", "object_id", "content_object", "created_at")
-    # ordering = ("number_lesson", "verb_en",)
+    # ordering = ("lesson_number", "verb_en",)
     list_per_page = 100
     list_filter = (FirstLessonFilter,)
 

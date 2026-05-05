@@ -62,7 +62,7 @@ def generate_pdf(wordsearch):
     # =========================
     grid = wordsearch.grid
     solution = wordsearch.solution
-    words = sorted([w.text for w in wordsearch.words.all()])
+    words = sorted([w.text.upper() for w in wordsearch.words.all()])
 
     # =========================
     # 🎨 MAPEAR CORES DAS PALAVRAS
@@ -81,7 +81,7 @@ def generate_pdf(wordsearch):
     cell_map = {}
 
     for item in solution:
-        word = item["word"]
+        word = item["word"].upper()
         for r, c in item["positions"]:
             cell_map.setdefault((r, c), []).append(word)
 
@@ -96,7 +96,7 @@ def generate_pdf(wordsearch):
         )
 
         style = [
-            ("GRID", (0, 0), (-1, -1), 1, colors.black),
+            ("GRID", (0, 0), (-1, -1), 1, colors.lightgrey),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("FONTSIZE", (0, 0), (-1, -1), 14),
@@ -105,7 +105,7 @@ def generate_pdf(wordsearch):
         if highlight:
             for (r, c), words_here in cell_map.items():
                 if len(words_here) == 1:
-                    color = word_color_map[words_here[0]]
+                    color = word_color_map.get(words_here[0], EXCESS_COLOR)
                 else:
                     color = INTERSECTION_COLOR
 
@@ -155,7 +155,7 @@ def generate_pdf(wordsearch):
 
     layout1 = Table([
         [build_table(grid, highlight=False), build_word_list(colored=False)]
-    ], colWidths=[300, 150])
+    ], colWidths=[340, 150])#colWidths=[grid_width + 10, 150]   #colWidths=[340, 150]
 
     elements.append(layout1)
 
@@ -169,7 +169,7 @@ def generate_pdf(wordsearch):
 
     layout2 = Table([
         [build_table(grid, highlight=True), build_word_list(colored=True)]
-    ], colWidths=[300, 150])
+    ], colWidths=[340, 150])
 
     elements.append(layout2)
 

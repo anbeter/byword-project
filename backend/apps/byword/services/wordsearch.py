@@ -2,7 +2,8 @@ from apps.byword.wordsearch.engine import WordSearchEngine
 
 
 def generate_grid(wordsearch):
-    words = [w.text for w in wordsearch.words.all()]
+    # words = [w.text for w in wordsearch.words.all()]
+    words = [w.text.upper() for w in wordsearch.words.all()]
 
     engine = WordSearchEngine(
         rows=wordsearch.rows,

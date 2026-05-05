@@ -6,12 +6,26 @@ import re
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
+class Lesson(models.Model):
+    number = models.PositiveIntegerField(unique=True)
+    name = models.CharField(max_length=70)
+
+    def __str__(self):
+        return f"Lesson {self.number} - {self.name}"
+
 
 class WordSearch(models.Model):
     name = models.CharField(max_length=100)
+    lesson = models.ForeignKey(
+        "Lesson",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="wordsearches"
+    )
 
-    rows = models.PositiveIntegerField(default=15)
-    cols = models.PositiveIntegerField(default=15)
+    rows = models.PositiveIntegerField(default=14)
+    cols = models.PositiveIntegerField(default=14)
 
     grid = models.JSONField(null=True, blank=True)
     solution = models.JSONField(null=True, blank=True)
@@ -93,6 +107,13 @@ class Word(models.Model):
 
 class ScrambleWord(models.Model):
     titulo = models.CharField(max_length=70, null=True, blank=True)
+    lesson = models.ForeignKey(
+        "Lesson",
+        on_delete=models.CASCADE,
+        null=False,
+        blank=False,
+        related_name="scramblewords"
+    )
     texto_original = models.CharField(max_length=270)
     texto_embaralhado = models.TextField(blank=True)
 
@@ -105,14 +126,17 @@ class ScrambleWord(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        # titulo = self.titulo or ''
-        # texto = self.texto_original
-        # return f"{titulo} - {texto}" if titulo else texto
-        return f"{self.titulo or ''} - {self.texto_original}"
+        return f"{self.lesson or ''} - {self.texto_original}"
 
 
 class Music(models.Model):
     number_lesson = models.PositiveIntegerField(unique=True)
+    lesson = models.ForeignKey(
+        "Lesson",
+        on_delete=models.CASCADE,
+        related_name="musics"
+    )
+
     title = models.CharField(max_length=150)
     author = models.CharField(max_length=150, blank=True, null=True)
 
@@ -123,7 +147,7 @@ class Music(models.Model):
     lyrics_spaces = models.TextField(blank=True)
 
     class Meta:
-        unique_together = ("title", "author")
+        unique_together = ("lesson", "title", "author")
 
     def __str__(self):
         return f"{self.title} - {self.author or ''}".strip()
@@ -154,17 +178,21 @@ class Music(models.Model):
             new_text=self.lyrics,
             instance=self,
             origin="music",
-            number_lesson=self.number_lesson
+            lesson=self.lesson,
         )
 
 
 class LessonText(models.Model):
-    number_lesson = models.PositiveIntegerField(unique=True)
+    lesson = models.ForeignKey(
+        "Lesson",
+        on_delete=models.CASCADE,
+        related_name="texts"
+    )
     title = models.CharField(max_length=150)
     text = models.TextField()
 
     def __str__(self):
-        return self.title
+        return f"Lesson {self.lesson.number} - {self.lesson.number}"
 
     def get_pages(self):
         return self.text.split("#")
@@ -186,7 +214,7 @@ class LessonText(models.Model):
             new_text=self.text,
             old_text=old_text,
             origin="lesson_text",
-            number_lesson=self.number_lesson,
+            lesson=self.lesson,
         )
 
 
@@ -206,14 +234,17 @@ class DictionaryOccurrence(models.Model):
         on_delete=models.CASCADE,
         related_name="occurrences"
     )
+    lesson = models.ForeignKey(
+        "Lesson",
+        on_delete=models.CASCADE,
+        related_name="dictionary_occurrences"
+    )
 
     origin = models.CharField(max_length=20)  # "music" / "lesson_text"
 
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey("content_type", "object_id")
-
-    number_lesson = models.PositiveIntegerField()
 
     created_at = models.DateTimeField(auto_now_add=True)
 

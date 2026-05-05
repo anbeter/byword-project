@@ -23,3 +23,29 @@ ATIVIDADES
     reescrever a sentença no: presente, ou passado, ou negativo, ou etc.
 
 9 - MUSIC
+
+
+
+
+
+
+
+
+###################################
+ideias de exercícios do gpt...
+🔥 VARIAÇÕES QUE VOCÊ PODE TER
+🔹 1. Com banco de palavras (mais fácil)
+Fill in the blanks:
+
+I ____ to school every day.
+
+Options:
+(go / goes / went)
+🔹 2. Sem banco (mais difícil)
+I ____ to school every day.
+🔹 3. Misturado (melhor didaticamente)
+Words:
+(go, went, happy, school)
+
+1) I ____ to school every day.
+2) I am very ____.

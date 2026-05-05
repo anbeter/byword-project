@@ -39,6 +39,12 @@ class WordSearch(models.Model):
         if self.rows > 50 or self.cols > 50:
             raise ValidationError("Grid máximo é 50x50")
 
+    def __str__(self):
+        if self.lesson:
+            lesson_name = self.lesson.name or "Unnamed"
+            return f"{self.lesson.number} - {lesson_name}"
+        return self.name
+
     def save(self, *args, **kwargs):
         if not self.rows:
             self.rows = 15
@@ -109,9 +115,9 @@ class ScrambleWord(models.Model):
     titulo = models.CharField(max_length=70, null=True, blank=True)
     lesson = models.ForeignKey(
         "Lesson",
-        on_delete=models.CASCADE,
-        null=False,
-        blank=False,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="scramblewords"
     )
     texto_original = models.CharField(max_length=270)
@@ -124,9 +130,14 @@ class ScrambleWord(models.Model):
 
         self.texto_embaralhado = embaralhar_texto(self.texto_original)
         super().save(*args, **kwargs)
+    
+    def get_display_title(self):
+        if self.lesson:
+            return f"{self.lesson.number} - {self.lesson.name}"
+        return self.titulo or "Scramble avulso"
 
     def __str__(self):
-        return f"{self.lesson or ''} - {self.texto_original}"
+        return self.get_display_title()
 
 
 class Music(models.Model):

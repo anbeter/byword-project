@@ -22,6 +22,8 @@ from django.core.exceptions import ValidationError
 from .services.wordsearch import generate_grid
 from .services.pdf import generate_pdf
 from .services.png import generate_png
+
+from apps.byword.services.lesson import format_lesson_title
 from apps.byword.services.dictionary import suggest_translation
 from apps.byword.services.wordsearch import generate_grid
 
@@ -68,7 +70,7 @@ class WordInline(admin.TabularInline):
 @admin.register(WordSearch)
 class WordSearchAdmin(admin.ModelAdmin):
     inlines = [WordInline]
-    list_display = ("id", "name", "rows", "cols", "created_at")
+    list_display = ("name", "rows", "cols", "created_at")
     # list_display = ('name', 'rows', 'cols', 'created_at')
     # change_form_template = "admin/wordsearch_change_form.html"
     change_form_template = "/app/apps/byword/templates/admin/wordsearch_change_form.html"
@@ -163,7 +165,7 @@ class WordSearchAdmin(admin.ModelAdmin):
 
 @admin.register(ScrambleWord)
 class ScrambleWordAdmin(admin.ModelAdmin):
-    list_display = ('id', 'titulo', 'texto_original', 'texto_embaralhado', 'criado_em')
+    list_display = ('titulo', 'texto_original', 'texto_embaralhado', 'criado_em')
     search_fields = ('titulo', 'texto_original')
     readonly_fields = ('texto_embaralhado', 'criado_em')
 
@@ -408,26 +410,32 @@ class DictionaryAdmin(admin.ModelAdmin):
             return
 
         # pegar lição (menor ocorrência)
-        queryset = queryset.annotate(
+        queryset = queryset.annotate(                                                                                                       
             first_lesson=Min("occurrences__lesson__number")
         )
 
         lesson = min([
             obj.first_lesson for obj in queryset if obj.first_lesson
         ])
-
+        lesson_obj = Lesson.objects.filter(number=lesson).first()                                                                                                           
         words = [obj.verb_en for obj in queryset]
 
         text = " ".join(words)
 
         scramble = ScrambleWord.objects.create(
-            title=f"Lesson {lesson}",
-            text_original=text
+            titulo=format_lesson_title(lesson_obj) or "Scramble",
+            texto_original=text
         )
 
         messages.success(request, "ScrambleWord criado com sucesso.")
+        url = reverse(
+            f"admin:{scramble._meta.app_label}_{scramble._meta.model_name}_change",
+            args=[scramble.id]
+        )
 
-        return redirect(f"/admin/scrambleword/scrambleword/{scramble.id}/change/")
+        return redirect(url)
+        
+    
 
     create_scramble_from_words.short_description = "Create ScrambleWords from selection"
 

@@ -2,6 +2,8 @@ import re
 from django.contrib.contenttypes.models import ContentType
 from apps.byword.models import Dictionary, Lesson
 
+from django.core.cache import cache
+
 import re
 from django.contrib.contenttypes.models import ContentType
 from apps.byword.models import Dictionary, DictionaryOccurrence
@@ -46,15 +48,31 @@ def suggest_translation(word):
 
 def translate_word_if_needed(dictionary):
     """
-    Traduz a palavra apenas se ainda não tiver tradução
+    Traduz a palavra usando cache para evitar chamadas repetidas
     """
+
     if dictionary.translation:
         return dictionary
 
-    try:
-        translation = GoogleTranslator(source='en', target='pt').translate(dictionary.verb_en)
-        dictionary.translation = translation
+    cache_key = f"translate:{dictionary.verb_en.lower()}"
+    cached = cache.get(cache_key)
+
+    if cached:
+        dictionary.translation = cached
         dictionary.save(update_fields=["translation"])
+        return dictionary
+
+    try:
+        translation = GoogleTranslator(
+            source='en',
+            target='pt'
+        ).translate(dictionary.verb_en)
+
+        if translation:
+            dictionary.translation = translation
+            dictionary.save(update_fields=["translation"])
+            cache.set(cache_key, translation, timeout=60 * 60 * 24 * 30)  # 30 dias
+
     except Exception:
         pass
 
@@ -100,14 +118,14 @@ def sync_dictionary(*, old_text, new_text, instance, origin, lesson):
     # =========================
     # ADICIONAR NOVAS PALAVRAS
     # =========================
-    # translated_cache = {}
-
-    # 🔥 OPCIONAL: tradução automática (DESLIGADO)
-    # if created:
-    #     translate_word_if_needed(dictionary)
+    translated_cache = {}
 
     for word in added_words:
         dictionary, created = Dictionary.objects.get_or_create(verb_en=word)
+        # 🔥 OPCIONAL: tradução automática (DESLIGADO)
+        if created:
+            translate_word_if_needed(dictionary)
+        # fim da tradução automática
 
         DictionaryOccurrence.objects.get_or_create(
             dictionary=dictionary,
@@ -118,6 +136,3 @@ def sync_dictionary(*, old_text, new_text, instance, origin, lesson):
                 "lesson": lesson,
             }
         )
-
-        # if created and dictionary.translation:
-        #     dictionary.save()

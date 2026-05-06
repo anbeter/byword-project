@@ -1,19 +1,32 @@
+from django.contrib.contenttypes.models import ContentType
+
+from apps.byword.models import (
+    Activity,
+    ActivityItem,
+    Dictionary,
+    ScrambleWord,
+    WordSearch,
+    Music,
+)
+
+
 def create_default_activity(lesson):
     activity = Activity.objects.create(lesson=lesson)
 
     defaults = [
-        ("dictionary", 1),
-        ("scramble", 2),
-        ("wordsearch", 3),
+        (Dictionary, 1),
+        (ScrambleWord, 2),
+        (WordSearch, 3),
+        (Music, 7),
     ]
 
-    for item_type, order in defaults:
+    for model_class, order in defaults:
+        content_type = ContentType.objects.get_for_model(model_class)
+
         ActivityItem.objects.create(
             activity=activity,
-            type=item_type,
             order=order,
-            content_type=None,
-            object_id=None
+            content_type=content_type,
         )
 
     return activity

@@ -46,6 +46,10 @@ class WordSearch(models.Model):
         if self.rows > 50 or self.cols > 50:
             raise ValidationError("Grid máximo é 50x50")
 
+    class Meta:
+        verbose_name = "Word Search"
+        verbose_name_plural = "Word Search"
+
     def __str__(self):
         if self.lesson:
             lesson_name = self.lesson.name or "Unnamed"
@@ -132,6 +136,10 @@ class ScrambleWord(models.Model):
 
     criado_em = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        verbose_name = "Scramble Words"
+        verbose_name_plural = "Scramble Words"
+
     def save(self, *args, **kwargs):
         from .scrambleword.engine import embaralhar_texto
 
@@ -166,6 +174,8 @@ class Music(models.Model):
 
     class Meta:
         unique_together = ("lesson", "title", "author")
+        verbose_name = "Music"
+        verbose_name_plural = "Music"
 
     def __str__(self):
         return f"{self.title} - {self.author or ''}".strip()
@@ -241,6 +251,10 @@ class Dictionary(models.Model):
     translation = models.CharField(max_length=270, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Dictionary"
+        verbose_name_plural = "Dictionary"
 
     def __str__(self):
         return self.verb_en

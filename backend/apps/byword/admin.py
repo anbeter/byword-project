@@ -226,13 +226,14 @@ class ScrambleWordAdmin(admin.ModelAdmin):
         
             ws = wb.create_sheet(title=sheet_name)
 
-            words = obj.texto_original.split()
+            words = obj.texto_embaralhado.split()
+            # wordsscramb = obj.texto_embaralhado.split()
 
             row = 1
 
             for word in words:
                 clean_word = word.strip()
-
+                # scramb = wordsscramb.strip()
                 # 🔎 tentar achar tradução no dictionary
                 from apps.byword.models import Dictionary
 
@@ -625,6 +626,24 @@ class ActivityItemInline(admin.TabularInline):
     fields = ("order", "content_type")
     readonly_fields = ()
     show_change_link = True
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "content_type":
+            allowed_models = [Dictionary, ScrambleWord, WordSearch, Music]
+
+            qs = ContentType.objects.filter(
+                model__in=[m._meta.model_name for m in allowed_models]
+            )
+
+            field = super().formfield_for_foreignkey(db_field, request, **kwargs)
+            field.queryset = qs
+
+            # 🔥 Aqui resolve o "Byword | dictionary"
+            field.label_from_instance = lambda obj: obj.model_class()._meta.verbose_name.title()
+
+            return field
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "content_type":

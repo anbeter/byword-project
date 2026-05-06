@@ -13,6 +13,13 @@ class Lesson(models.Model):
     def __str__(self):
         return f"Lesson {self.number} - {self.name}"
 
+    # def save(self, *args, **kwargs):
+    #     is_new = self.pk is None
+    #     super().save(*args, **kwargs)
+
+    #     if is_new:
+    #         from .models import Activity
+    #         Activity.objects.create(lesson=self)
 
 class WordSearch(models.Model):
     name = models.CharField(max_length=100)
@@ -267,3 +274,54 @@ class DictionaryOccurrence(models.Model):
 
     def __str__(self):
         return f"{self.dictionary} ({self.origin})"
+
+
+class Activity(models.Model):
+    lesson = models.OneToOneField(
+        "Lesson",
+        on_delete=models.CASCADE,
+        related_name="activity"
+    )
+
+    @property
+    def title(self):
+        return f"Lesson {self.lesson.number} - {self.lesson.name}"
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Lesson {self.lesson.number} - {self.lesson.name}"
+
+
+class ActivityItem(models.Model):
+    class ItemType(models.TextChoices):
+        # BIBLE_REFERENCE = "bible_reference", "Bible Reference"
+        DICTIONARY = "dictionary", "Dictionary"
+        SCRAMBLE = "scramble", "Scramble Words"
+        WORDSEARCH = "wordsearch", "Word Search"
+        # VERSE = "verse", "Verse"
+        # COMPLETE = "complete", "Complete the Sentences"
+        # REWRITE = "rewrite", "Rewrite the Sentences"
+        MUSIC = "music", "Music"
+
+    activity = models.ForeignKey(
+        Activity,
+        on_delete=models.CASCADE,
+        related_name="items"
+    )
+
+    order = models.PositiveIntegerField()
+
+    # 🔥 ligação genérica (qualquer modelo)
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE
+    )
+
+
+    class Meta:
+        ordering = ["order"]
+        unique_together = ("activity", "order")
+
+    def __str__(self):
+        return f"{self.activity} - ({self.order}) {self.content_type}"

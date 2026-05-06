@@ -1,5 +1,6 @@
 from django.contrib import admin, messages
 from django.contrib.admin import SimpleListFilter
+from django.contrib.contenttypes.models import ContentType
 from django.urls import path, reverse
 from django.shortcuts import redirect
 
@@ -11,10 +12,13 @@ from django.db.models import Min
 
 import os
 import csv
+import re
+
 from openpyxl import Workbook
 
 from .models import Lesson, WordSearch, Word, ScrambleWord
 from .models import Music, LessonText, Dictionary, DictionaryOccurrence
+from .models import Activity, ActivityItem
 
 from django.forms.models import BaseInlineFormSet
 from django.core.exceptions import ValidationError
@@ -160,14 +164,99 @@ class WordSearchAdmin(admin.ModelAdmin):
             return redirect(f"../../{wordsearch_id}/change/")
 
         return FileResponse(open(filepath, "rb"), as_attachment=True)
-    
+
+from django.http import HttpResponse
+from openpyxl import Workbook
+import re
+
+
+def build_underline(word, translation=None):
+    if translation:
+        return "_" * ((2 * len(translation)) + 2)
+    return "_" * ((2 * len(word)) + 4)
 
 
 @admin.register(ScrambleWord)
 class ScrambleWordAdmin(admin.ModelAdmin):
     list_display = ('titulo', 'texto_original', 'texto_embaralhado', 'criado_em')
+    actions = [
+        "export_scramble_xlsx"
+    ]
     search_fields = ('titulo', 'texto_original')
     readonly_fields = ('texto_embaralhado', 'criado_em')
+    
+    @admin.action(description="Export selected to XLSX")
+    def export_scramble_xlsx(modeladmin, request, queryset):
+        wb = Workbook()
+        
+        # remove aba padrão
+        default_sheet = wb.active
+        wb.remove(default_sheet)
+        # =========================
+        # 🧠 GERAR NOME DO ARQUIVO
+        # =========================
+        def clean_name(text):
+            if not text:
+                return "scramble"
+            # mantém letras, números, acentos e espaço
+            text = re.sub(r"[^\wÀ-ÿ ]+", "", text)
+            return text.strip().replace(" ", "_")
+
+        titles = []
+        for obj in queryset:
+            t = obj.titulo or str(obj)
+            t_clean = clean_name(t)
+            if t_clean not in titles:
+                titles.append(t_clean)
+
+        if not titles:
+            name_file = "scramble"
+        elif len(titles) == 1:
+            name_file = titles[0]
+        else:
+            name_file = "-".join(titles)
+
+        # evita nome gigante
+        name_file = name_file[:120]
+
+
+        for obj in queryset:
+            # nome da aba (máx 31 chars no Excel)
+            sheet_name = str(obj)[:31]
+        
+            ws = wb.create_sheet(title=sheet_name)
+
+            words = obj.texto_original.split()
+
+            row = 1
+
+            for word in words:
+                clean_word = word.strip()
+
+                # 🔎 tentar achar tradução no dictionary
+                from apps.byword.models import Dictionary
+
+                dictionary = Dictionary.objects.filter(verb_en=clean_word.lower()).first()
+                translation = dictionary.translation if dictionary else None
+
+                underline = build_underline(clean_word, translation)
+
+                ws.cell(row=row, column=1, value=clean_word)
+                ws.cell(row=row, column=2, value=underline)
+
+                row += 1
+
+        # =========================
+        # 📦 RESPONSE
+        # =========================
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        response["Content-Disposition"] = f'attachment; filename="{name_file}.xlsx"'
+
+        wb.save(response)
+        return response
 
 
 @admin.register(Music)
@@ -272,7 +361,7 @@ class DictionaryAdmin(admin.ModelAdmin):
         "export_dictionary_xlsx",
         "create_scramble_from_words",
         "create_wordsearch_from_words",
-        "rebuild_dictionary_from_lessons"
+        "rebuild_dictionary_from_lessons",
     ]
 
     def rebuild_dictionary_from_lessons(modeladmin, request, queryset):
@@ -527,3 +616,100 @@ class DictionaryAdmin(admin.ModelAdmin):
     list_per_page = 100
     list_filter = (FirstLessonFilter,)
 
+
+
+class ActivityItemInline(admin.TabularInline):
+    model = ActivityItem
+    extra = 0
+    ordering = ("order",)
+    fields = ("order", "content_type")
+    readonly_fields = ()
+    show_change_link = True
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "content_type":
+            allowed_models = [Dictionary, ScrambleWord, WordSearch, Music]
+
+            kwargs["queryset"] = ContentType.objects.filter(
+                model__in=[m._meta.model_name for m in allowed_models]
+            )
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+@admin.register(Activity)
+class ActivityAdmin(admin.ModelAdmin):
+    list_display = ("lesson", "title")
+    ordering = ("lesson__number",)
+    inlines = [ActivityItemInline]
+    actions = [
+        "rebuild_activity"
+    ]
+
+    def title(self, obj):
+        return f"Lesson {obj.lesson.number} - {obj.lesson.name}"
+    
+    @admin.action(description="Rebuild activity items from lesson")
+    def rebuild_activity(modeladmin, request, queryset):
+        for activity in queryset:
+            lesson = activity.lesson
+
+            # 🔥 limpa tudo antes
+            ActivityItem.objects.filter(activity=activity).delete()
+
+            order_map = {
+                "dictionary": 1,
+                "scramble": 2,
+                "wordsearch": 3,
+                "music": 7,
+            }
+
+            # =====================
+            # WORDSEARCH
+            # =====================
+            for ws in WordSearch.objects.filter(lesson=lesson):
+                ActivityItem.objects.create(
+                    activity=activity,
+                    type="wordsearch",
+                    order=order_map["wordsearch"],
+                    content_type=ContentType.objects.get_for_model(ws),
+                    object_id=ws.id
+                )
+
+            # =====================
+            # SCRAMBLE
+            # =====================
+            for sc in ScrambleWord.objects.filter(lesson=lesson):
+                ActivityItem.objects.create(
+                    activity=activity,
+                    type="scramble",
+                    order=order_map["scramble"],
+                    content_type=ContentType.objects.get_for_model(sc),
+                    object_id=sc.id
+                )
+
+            # =====================
+            # MUSIC
+            # =====================
+            for music in Music.objects.filter(lesson=lesson):
+                ActivityItem.objects.create(
+                    activity=activity,
+                    type="music",
+                    order=order_map["music"],
+                    content_type=ContentType.objects.get_for_model(music),
+                    object_id=music.id
+                )
+
+            # =====================
+            # DICTIONARY (especial)
+            # =====================
+            if Dictionary.objects.filter(occurrences__lesson=lesson).exists():
+                ActivityItem.objects.create(
+                    activity=activity,
+                    type="dictionary",
+                    order=order_map["dictionary"],
+                    content_type=ContentType.objects.get_for_model(Dictionary),
+                    object_id=Dictionary.objects.first().id  # placeholder lógico
+                )
+
+            modeladmin.message_user(request, "Activities rebuilt successfully!", messages.SUCCESS)

@@ -665,6 +665,14 @@ class ActivityAdmin(admin.ModelAdmin):
         "rebuild_activity"
     ]
 
+    def get_readonly_fields(self, request, obj=None):
+        # 🔥 ao editar, trava o campo lesson
+        if obj:
+            return ("lesson",)
+
+        # 🔥 ao criar, continua editável
+        return ()
+
     def title(self, obj):
         return f"Lesson {obj.lesson.number} - {obj.lesson.name}"
     

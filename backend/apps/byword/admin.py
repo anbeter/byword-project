@@ -4,6 +4,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.urls import path, reverse
 from django.shortcuts import redirect
 
+from adminsortable2.admin import SortableAdminBase,  SortableInlineAdminMixin
+
 from django.http import FileResponse, HttpResponse
 
 from django.conf import settings
@@ -619,45 +621,38 @@ class DictionaryAdmin(admin.ModelAdmin):
 
 
 
-class ActivityItemInline(admin.TabularInline):
+# class ActivityItemInline(SortableInlineAdminMixin, admin.TabularInline):
+class ActivityItemInline(SortableInlineAdminMixin, admin.StackedInline):
     model = ActivityItem
     extra = 0
     ordering = ("order",)
-    fields = ("order", "content_type")
-    readonly_fields = ()
-    show_change_link = True
+    fields = ("order", "content_type",)
+    # can_delete = True ### para poder deletar
+    # readonly_fields = ("order",)
+    # show_change_link = True
+    # autocomplete_fields = ("content_type",)
+
+    class Media:
+        css = {
+            "all": ("admin/activity.css",)
+        }
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "content_type":
             allowed_models = [Dictionary, ScrambleWord, WordSearch, Music]
-
             qs = ContentType.objects.filter(
                 model__in=[m._meta.model_name for m in allowed_models]
             )
-
             field = super().formfield_for_foreignkey(db_field, request, **kwargs)
             field.queryset = qs
-
             # 🔥 Aqui resolve o "Byword | dictionary"
             field.label_from_instance = lambda obj: obj.model_class()._meta.verbose_name.title()
-
             return field
-
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "content_type":
-            allowed_models = [Dictionary, ScrambleWord, WordSearch, Music]
-
-            kwargs["queryset"] = ContentType.objects.filter(
-                model__in=[m._meta.model_name for m in allowed_models]
-            )
-
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(Activity)
-class ActivityAdmin(admin.ModelAdmin):
+class ActivityAdmin(SortableAdminBase, admin.ModelAdmin):
     list_display = ("lesson", "title")
     ordering = ("lesson__number",)
     inlines = [ActivityItemInline]
@@ -665,12 +660,12 @@ class ActivityAdmin(admin.ModelAdmin):
         "rebuild_activity"
     ]
 
+    def has_delete_permission(self, request, obj=None):
+        return False
+
     def get_readonly_fields(self, request, obj=None):
-        # 🔥 ao editar, trava o campo lesson
         if obj:
             return ("lesson",)
-
-        # 🔥 ao criar, continua editável
         return ()
 
     def title(self, obj):
@@ -678,65 +673,27 @@ class ActivityAdmin(admin.ModelAdmin):
     
     @admin.action(description="Rebuild activity items from lesson")
     def rebuild_activity(modeladmin, request, queryset):
+
+        model_order = {
+            Dictionary: 1,
+            ScrambleWord: 2,
+            WordSearch: 3,
+            Music: 4,
+        }
+
         for activity in queryset:
             lesson = activity.lesson
-
-            # 🔥 limpa tudo antes
             ActivityItem.objects.filter(activity=activity).delete()
-
-            order_map = {
-                "dictionary": 1,
-                "scramble": 2,
-                "wordsearch": 3,
-                "music": 7,
-            }
-
-            # =====================
-            # WORDSEARCH
-            # =====================
-            for ws in WordSearch.objects.filter(lesson=lesson):
+            for model_class, order in model_order.items():
+                content_type = ContentType.objects.get_for_model(model_class)
                 ActivityItem.objects.create(
                     activity=activity,
-                    type="wordsearch",
-                    order=order_map["wordsearch"],
-                    content_type=ContentType.objects.get_for_model(ws),
-                    object_id=ws.id
+                    order=order,
+                    content_type=content_type,
                 )
 
-            # =====================
-            # SCRAMBLE
-            # =====================
-            for sc in ScrambleWord.objects.filter(lesson=lesson):
-                ActivityItem.objects.create(
-                    activity=activity,
-                    type="scramble",
-                    order=order_map["scramble"],
-                    content_type=ContentType.objects.get_for_model(sc),
-                    object_id=sc.id
-                )
-
-            # =====================
-            # MUSIC
-            # =====================
-            for music in Music.objects.filter(lesson=lesson):
-                ActivityItem.objects.create(
-                    activity=activity,
-                    type="music",
-                    order=order_map["music"],
-                    content_type=ContentType.objects.get_for_model(music),
-                    object_id=music.id
-                )
-
-            # =====================
-            # DICTIONARY (especial)
-            # =====================
-            if Dictionary.objects.filter(occurrences__lesson=lesson).exists():
-                ActivityItem.objects.create(
-                    activity=activity,
-                    type="dictionary",
-                    order=order_map["dictionary"],
-                    content_type=ContentType.objects.get_for_model(Dictionary),
-                    object_id=Dictionary.objects.first().id  # placeholder lógico
-                )
-
-            modeladmin.message_user(request, "Activities rebuilt successfully!", messages.SUCCESS)
+        modeladmin.message_user(
+            request,
+            "Activities rebuilt successfully!",
+            messages.SUCCESS
+        )

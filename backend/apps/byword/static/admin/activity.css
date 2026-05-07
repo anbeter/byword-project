@@ -1,0 +1,58 @@
+#items-group h2 {
+    margin-bottom: 4px !important;
+    font-size: 12px !important;
+    padding: 4px 8px !important;
+}
+
+/* card */
+.inline-related {
+    background: #dbeafe !important;
+    border-radius: 10px !important;
+    padding: 8px 10px !important;
+    margin-bottom: 4px !important;
+    border: 1px solid #93c5fd !important;
+}
+
+/* título do item */
+.inline-related h3 {
+    background: transparent !important;
+    font-size: 12px !important;
+    padding: 0 !important;
+    margin-bottom: 4px !important;
+}
+
+/* esconder order */
+.field-order {
+    display: none !important;
+}
+
+/* drag handle */
+.inline-related .drag {
+    cursor: move;
+    font-size: 12px;
+    padding-right: 4px;
+}
+
+/* linhas dos campos */
+.inline-related .form-row {
+    padding: 1px 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* labels */
+.inline-related label {
+    font-size: 11px !important;
+}
+
+/* select */
+.inline-related select {
+    font-size: 11px !important;
+    padding: 2px 6px !important;
+    min-height: 26px !important;
+}
+
+/* checkbox delete */
+.inline-related input[type="checkbox"] {
+    transform: scale(0.9);
+}
+

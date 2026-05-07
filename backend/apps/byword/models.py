@@ -324,7 +324,8 @@ class ActivityItem(models.Model):
         related_name="items"
     )
 
-    order = models.PositiveIntegerField()
+    # order = models.PositiveIntegerField(unique=True)
+    order = models.PositiveIntegerField(default=0)
 
     # 🔥 ligação genérica (qualquer modelo)
     content_type = models.ForeignKey(
@@ -335,7 +336,9 @@ class ActivityItem(models.Model):
 
     class Meta:
         ordering = ["order"]
-        unique_together = ("activity", "order")
+        # unique_together = ("activity", "order")
 
+    # def __str__(self):
+    #     return f"{self.activity} - ({self.order}) {self.content_type}"
     def __str__(self):
-        return f"{self.activity} - ({self.order}) {self.content_type}"
+        return f"{self.content_type}"

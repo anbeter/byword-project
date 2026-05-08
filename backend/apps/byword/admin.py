@@ -539,7 +539,7 @@ class DictionaryAdmin(admin.ModelAdmin):
         words = [obj.verb_en for obj in queryset]
 
         text = " ".join(words)
-        
+
         scramble = ScrambleWord.objects.create(
             titulo=format_lesson_title(lesson_obj) or "Scramble",
             lesson=lesson_obj,
@@ -680,6 +680,8 @@ class ActivityItemInline(SortableInlineAdminMixin, admin.StackedInline):
 
 @admin.register(Activity)
 class ActivityAdmin(SortableAdminBase, admin.ModelAdmin):
+    change_form_template = "admin/activity_change_form.html"
+
     list_display = ("lesson", "title")
     ordering = ("lesson__number",)
     inlines = [ActivityItemInline]
@@ -687,6 +689,34 @@ class ActivityAdmin(SortableAdminBase, admin.ModelAdmin):
         "rebuild_activity",
         "export_docx",
     ]
+
+    #custom url
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "<int:activity_id>/generate-docx/",
+                self.admin_site.admin_view(self.generate_docx_view),
+                name="byword_activity_generate_docx",
+            ),
+        ]
+        return custom_urls + urls
+
+    #button view
+    def generate_docx_view(self, request, activity_id):
+        activity = Activity.objects.get(id=activity_id)
+        doc = generate_activity_docx(activity)
+        response = HttpResponse(
+            content_type=(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+        )
+        filename = (f"lesson_{activity.lesson.number}.docx")
+        response["Content-Disposition"] = (
+            f'attachment; filename="{filename}"'
+        )
+        doc.save(response)
+        return response
 
     def has_delete_permission(self, request, obj=None):
         return False
@@ -728,7 +758,6 @@ class ActivityAdmin(SortableAdminBase, admin.ModelAdmin):
 
     @admin.action(description="Generate DOCX")
     def export_docx(modeladmin, request, queryset):
-
         if queryset.count() != 1:
             modeladmin.message_user(
                 request,
@@ -736,25 +765,18 @@ class ActivityAdmin(SortableAdminBase, admin.ModelAdmin):
                 messages.ERROR
             )
             return
-
         activity = queryset.first()
-
         doc = generate_activity_docx(activity)
-
         response = HttpResponse(
             content_type=(
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
         )
-
         filename = (
             f"lesson_{activity.lesson.number}.docx"
         )
-
         response["Content-Disposition"] = (
             f'attachment; filename="{filename}"'
         )
-
         doc.save(response)
-
         return response

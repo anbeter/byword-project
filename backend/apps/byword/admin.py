@@ -539,9 +539,10 @@ class DictionaryAdmin(admin.ModelAdmin):
         words = [obj.verb_en for obj in queryset]
 
         text = " ".join(words)
-
+        
         scramble = ScrambleWord.objects.create(
             titulo=format_lesson_title(lesson_obj) or "Scramble",
+            lesson=lesson_obj,
             texto_original=text
         )
 

@@ -18,6 +18,10 @@ import re
 
 from openpyxl import Workbook
 
+from docx import Document
+from docx.shared import Inches, Pt
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+
 from .models import Lesson, WordSearch, Word, ScrambleWord
 from .models import Music, LessonText, Dictionary, DictionaryOccurrence
 from .models import Activity, ActivityItem
@@ -32,6 +36,7 @@ from .services.png import generate_png
 from apps.byword.services.lesson import format_lesson_title
 from apps.byword.services.dictionary import suggest_translation
 from apps.byword.services.wordsearch import generate_grid
+from apps.byword.services.docx_activity import generate_activity_docx
 
 
 @admin.register(Lesson)
@@ -142,7 +147,14 @@ class WordSearchAdmin(admin.ModelAdmin):
             generate_pdf(ws)
             messages.info(request, "PDF não existia e foi gerado automaticamente.")
 
-        return FileResponse(open(file_path, "rb"), as_attachment=True, filename=f"{wordsearch_id}.pdf")
+        # 🔥 nome do arquivo
+        filename = wordsearch_id
+        if ws.lesson:
+            filename = f"{ws.lesson.number}_{ws.lesson.name}"
+        else:
+            filename = ws.name
+
+        return FileResponse(open(file_path, "rb"), as_attachment=True, filename=f"{filename}.pdf")
 
     def download_png(self, request, wordsearch_id):
         ws = WordSearch.objects.get(id=wordsearch_id)
@@ -151,11 +163,19 @@ class WordSearchAdmin(admin.ModelAdmin):
         if not os.path.exists(file_path):
             generate_png(ws)
             messages.info(request, "PNG não existia e foi gerado automaticamente.")
+        
+         # 🔥 nome do arquivo
+        filename = wordsearch_id
+        if ws.lesson:
+            filename = f"{ws.lesson.number}_{ws.lesson.name}"
+        else:
+            filename = ws.name
 
-        return FileResponse(open(file_path, "rb"), as_attachment=True, filename=f"{wordsearch_id}.png")
+        return FileResponse(open(file_path, "rb"), as_attachment=True, filename=f"{filename}.png")
     
     def download_png_solution(self, request, wordsearch_id):
         filepath = f"media/png/{wordsearch_id}s.png"
+        ws = WordSearch.objects.get(id=wordsearch_id)
 
         if not os.path.exists(filepath):
             self.message_user(
@@ -164,8 +184,14 @@ class WordSearchAdmin(admin.ModelAdmin):
                 messages.ERROR
             )
             return redirect(f"../../{wordsearch_id}/change/")
+        # 🔥 nome do arquivo
+        filename = wordsearch_id
+        if ws.lesson:
+            filename = f"{ws.lesson.number}_{ws.lesson.name}"
+        else:
+            filename = ws.name
 
-        return FileResponse(open(filepath, "rb"), as_attachment=True)
+        return FileResponse(open(filepath, "rb"), as_attachment=True, filename=f"{filename}_s.png")
 
 from django.http import HttpResponse
 from openpyxl import Workbook
@@ -657,7 +683,8 @@ class ActivityAdmin(SortableAdminBase, admin.ModelAdmin):
     ordering = ("lesson__number",)
     inlines = [ActivityItemInline]
     actions = [
-        "rebuild_activity"
+        "rebuild_activity",
+        "export_docx",
     ]
 
     def has_delete_permission(self, request, obj=None):
@@ -697,3 +724,36 @@ class ActivityAdmin(SortableAdminBase, admin.ModelAdmin):
             "Activities rebuilt successfully!",
             messages.SUCCESS
         )
+
+    @admin.action(description="Generate DOCX")
+    def export_docx(modeladmin, request, queryset):
+
+        if queryset.count() != 1:
+            modeladmin.message_user(
+                request,
+                "Select only one activity.",
+                messages.ERROR
+            )
+            return
+
+        activity = queryset.first()
+
+        doc = generate_activity_docx(activity)
+
+        response = HttpResponse(
+            content_type=(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+        )
+
+        filename = (
+            f"lesson_{activity.lesson.number}.docx"
+        )
+
+        response["Content-Disposition"] = (
+            f'attachment; filename="{filename}"'
+        )
+
+        doc.save(response)
+
+        return response

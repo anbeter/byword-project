@@ -4,7 +4,7 @@ ATIVIDADES
 
 1 - TÍTULO DA LIÇÃO
 
-2 - REFERÊNCIA BÍBLICA *******
+2 - REFERÊNCIA BÍBLICA ******* um único campo?
     Somente referências;
 
 3 - VOCABULARY - DICTIONARY
@@ -13,7 +13,7 @@ ATIVIDADES
 
 5 - WORDSEARCH
 
-6 - WRITE THE VERSE ****
+6 - WRITE THE VERSE **** terá o id da referência,
     poderá ter vários versículos em ordem diferente do 6
 
 7 - COMPLETE THE SENTENCES ****

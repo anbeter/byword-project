@@ -12,3 +12,4 @@ sqlparse==0.5.5
 deep-translator
 openpyxl
 django-admin-sortable2
+python-docx

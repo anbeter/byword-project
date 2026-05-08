@@ -326,7 +326,7 @@ class ActivityItem(models.Model):
 
     # order = models.PositiveIntegerField(unique=True)
     order = models.PositiveIntegerField(default=0)
-
+    
     # 🔥 ligação genérica (qualquer modelo)
     content_type = models.ForeignKey(
         ContentType,

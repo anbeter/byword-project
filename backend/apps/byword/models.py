@@ -6,6 +6,8 @@ import re
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
+from apps.byword.services.text_mask import replace_marked_words
+
 class Lesson(models.Model):
     number = models.PositiveIntegerField(unique=True)
     name = models.CharField(max_length=70)
@@ -79,24 +81,19 @@ class Word(models.Model):
         on_delete=models.CASCADE
     )
 
-    text = models.CharField(max_length=50)          # (com acento)
-    normalized = models.CharField(max_length=50, editable=False)  # sem acento
+    text = models.CharField(max_length=50)
+    normalized = models.CharField(max_length=50, editable=False)
 
     def clean(self):
-        # if not self.wordsearch_id:
-        #     return
+
         if not self.wordsearch:
             raise ValidationError("WordSearch não definido.")
-
         word = self.text.strip()
-
         if not word.isalpha():
             raise ValidationError(
                 f'A palavra "{word}" deve conter apenas letras.'
             )
-
         max_size = max(self.wordsearch.rows, self.wordsearch.cols)
-
         if len(word) > max_size:
             raise ValidationError(
                 f'A palavra "{word}" excede o tamanho máximo ({max_size}).'
@@ -290,6 +287,65 @@ class DictionaryOccurrence(models.Model):
         return f"{self.dictionary} ({self.origin})"
 
 
+
+
+class Reference(models.Model):
+    lesson = models.ForeignKey(
+        "Lesson",
+        on_delete=models.CASCADE,
+        related_name="references"
+    )
+    reference = models.CharField(max_length=250)
+    book = models.CharField(max_length=50,null=True, blank=True)
+    chapter = models.PositiveIntegerField(null=True, blank=True)
+    verse = models.PositiveIntegerField(null=True, blank=True)
+    notes = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["lesson__number", "book", "chapter", "verse"]
+
+    def __str__(self):
+        return self.reference
+
+
+class Verse(models.Model):
+    lesson = models.ForeignKey(
+        "Lesson",
+        on_delete=models.CASCADE,
+        related_name="verses"
+    )
+    reference = models.ForeignKey(
+        "Reference",
+        on_delete=models.CASCADE,
+        related_name="verses"
+    )
+    number = models.PositiveIntegerField()
+    original_text = models.TextField()
+    masked_text = models.TextField(blank=True, editable=False)
+    notes = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["reference", "number"]
+
+    def save(self, *args, **kwargs):
+
+        self.masked_text = replace_marked_words(
+            self.original_text
+        )
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+
+        return (
+            f"{self.reference} - Verse {self.number}"
+        )
+
+
+
+
 class Activity(models.Model):
     lesson = models.OneToOneField(
         "Lesson",
@@ -324,7 +380,6 @@ class ActivityItem(models.Model):
         related_name="items"
     )
 
-    # order = models.PositiveIntegerField(unique=True)
     order = models.PositiveIntegerField(default=0)
     
     # 🔥 ligação genérica (qualquer modelo)
@@ -336,9 +391,7 @@ class ActivityItem(models.Model):
 
     class Meta:
         ordering = ["order"]
-        # unique_together = ("activity", "order")
 
-    # def __str__(self):
-    #     return f"{self.activity} - ({self.order}) {self.content_type}"
     def __str__(self):
         return f"{self.content_type}"
+

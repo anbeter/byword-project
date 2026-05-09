@@ -24,6 +24,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 from .models import Lesson, WordSearch, Word, ScrambleWord
 from .models import Music, LessonText, Dictionary, DictionaryOccurrence
+from .models import Reference, Verse
 from .models import Activity, ActivityItem
 
 from django.forms.models import BaseInlineFormSet
@@ -646,6 +647,44 @@ class DictionaryAdmin(admin.ModelAdmin):
     list_per_page = 100
     list_filter = (FirstLessonFilter,)
 
+
+@admin.register(Reference)
+class ReferenceAdmin(admin.ModelAdmin):
+    list_display = (
+        "reference",
+        "lesson",
+        "book",
+        "chapter",
+        "verse",
+    )
+
+    search_fields = (
+        "reference",
+        "book",
+    )
+
+
+@admin.register(Verse)
+class VerseAdmin(admin.ModelAdmin):
+    list_display = (
+        "reference",
+        "number",
+        "short_original_text",
+    )
+
+    def short_original_text(self, obj):
+        if len(obj.original_text) > 50:
+            return obj.original_text[:50] + "..."
+        return obj.original_text
+    short_original_text.short_description = "Original Text"
+
+    search_fields = (
+        "original_text",
+    )
+
+    readonly_fields = (
+        "masked_text",
+    )
 
 
 # class ActivityItemInline(SortableInlineAdminMixin, admin.TabularInline):

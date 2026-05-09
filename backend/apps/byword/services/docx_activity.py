@@ -15,7 +15,11 @@ from apps.byword.models import (
     ScrambleWord,
     WordSearch,
     Music,
+    Reference,
+    Verse,
 )
+
+from apps.byword.services.text_mask import clean_text
 
 
 def remove_vertical_borders(table):
@@ -183,4 +187,79 @@ def generate_activity_docx(activity):
                     music.lyrics_spaces or ""
                 )
                 lyrics.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+        # =====================================================
+        # REFERENCE
+        # =====================================================
+        elif model == Reference:
+            references = (
+                Reference.objects
+                .filter(lesson=lesson)
+                .order_by(
+                    "book",
+                    "chapter",
+                    "verse",
+                )
+            )
+            if not references.exists():
+                continue
+            for reference in references:
+                paragraph = doc.add_paragraph()
+                paragraph.alignment = (
+                    WD_ALIGN_PARAGRAPH.RIGHT
+                )
+                run = paragraph.add_run(
+                    reference.reference
+                )
+                run.bold = True
+                if reference.notes:
+                    notes = doc.add_paragraph(
+                        reference.notes
+                    )
+                    notes.alignment = (
+                        WD_ALIGN_PARAGRAPH.LEFT
+                    )
+
+        # =====================================================
+        # VERSE
+        # =====================================================
+        elif model == Verse:
+            verses = (
+                Verse.objects
+                .filter(lesson=lesson)
+                .select_related("reference")
+                .order_by(
+                    "reference",
+                    "number",
+                )
+            )
+            if not verses.exists():
+                continue
+            add_subtitle(
+                doc,
+                "Write the Verse"
+            )
+            for verse in verses:
+                # texto limpo
+                original = doc.add_paragraph(
+                    clean_text(
+                        verse.original_text
+                    )
+                )
+                original.alignment = (
+                    WD_ALIGN_PARAGRAPH.LEFT
+                )
+                # texto mascarado
+                masked = doc.add_paragraph(
+                    verse.masked_text
+                )
+                masked.alignment = (
+                    WD_ALIGN_PARAGRAPH.LEFT
+                )
+                # espaço extra
+                doc.add_paragraph("")
+
+
+
+
     return doc

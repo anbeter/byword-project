@@ -705,7 +705,15 @@ class ActivityItemInline(SortableInlineAdminMixin, admin.StackedInline):
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "content_type":
-            allowed_models = [Dictionary, ScrambleWord, WordSearch, Music]
+            allowed_models = [
+                Reference,
+                Dictionary,
+                ScrambleWord,
+                WordSearch,
+                Music,
+                Verse,
+            ]
+            # allowed_models = [Dictionary, ScrambleWord, WordSearch, Music]
             qs = ContentType.objects.filter(
                 model__in=[m._meta.model_name for m in allowed_models]
             )

@@ -7,6 +7,8 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
 from apps.byword.services.text_mask import replace_marked_words
+from apps.byword.validators import validate_image_extension
+
 
 class Lesson(models.Model):
     number = models.PositiveIntegerField(unique=True)
@@ -25,6 +27,7 @@ class Lesson(models.Model):
 
 class WordSearch(models.Model):
     name = models.CharField(max_length=100)
+    subtitle = models.CharField(max_length=150,default="Word search")
     lesson = models.ForeignKey(
         "Lesson",
         on_delete=models.SET_NULL,
@@ -38,8 +41,16 @@ class WordSearch(models.Model):
 
     grid = models.JSONField(null=True, blank=True)
     solution = models.JSONField(null=True, blank=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
+
+    docx_subtitle = "Word Search"
+    docx_fields = (
+        {
+            # "field": "png",
+            "field": "__object__",
+            "renderer": "wordsearch_image",
+        },
+    )
 
     def clean(self):
         if self.rows < 5 or self.cols < 5:
@@ -121,6 +132,7 @@ class Word(models.Model):
 
 class ScrambleWord(models.Model):
     titulo = models.CharField(max_length=70, null=True, blank=True)
+    subtitle = models.CharField(max_length=150,default="Scrambled words")
     lesson = models.ForeignKey(
         "Lesson",
         on_delete=models.SET_NULL,
@@ -132,6 +144,16 @@ class ScrambleWord(models.Model):
     texto_embaralhado = models.TextField(blank=True)
 
     criado_em = models.DateTimeField(auto_now_add=True)
+    # attribute_docx = (
+    #     "texto_embaralhado",
+    # )
+    docx_subtitle = "Scramble Words"
+    docx_fields = (
+        {
+            "field": "texto_embaralhado",
+            "renderer": "scramble_table",
+        },
+    )
 
     class Meta:
         verbose_name = "Scramble Words"
@@ -154,6 +176,7 @@ class ScrambleWord(models.Model):
 
 class Music(models.Model):
     number_lesson = models.PositiveIntegerField(unique=True)
+    subtitle = models.CharField(max_length=150,default="Music")
     lesson = models.ForeignKey(
         "Lesson",
         on_delete=models.CASCADE,
@@ -168,6 +191,22 @@ class Music(models.Model):
 
     lyrics = models.TextField()
     lyrics_spaces = models.TextField(blank=True)
+
+    attribute_docx = (
+        "title",
+        "author",
+        "lyrics_spaces",
+    )
+    docx_fields = (
+        {
+            "field": "title",
+            "renderer": "title_right",
+        },
+        {
+            "field": "lyrics_spaces",
+            "renderer": "text",
+        },
+    )
 
     class Meta:
         unique_together = ("lesson", "title", "author")
@@ -214,6 +253,7 @@ class LessonText(models.Model):
         related_name="texts"
     )
     title = models.CharField(max_length=150)
+    subtitle = models.CharField(max_length=150,default="Lesson Text")
     text = models.TextField()
 
     def __str__(self):
@@ -246,8 +286,15 @@ class LessonText(models.Model):
 class Dictionary(models.Model):
     verb_en = models.CharField(max_length=150, unique=True)
     translation = models.CharField(max_length=270, blank=True)
-
+    subtitle = models.CharField(max_length=150,default="Vocabulary")
     created_at = models.DateTimeField(auto_now_add=True)
+    docx_subtitle = "Vocabulary"
+    docx_fields = (
+    {
+        "field": "vocabulary_table",
+        "renderer": "dictionary_table",
+    },
+)
 
     class Meta:
         verbose_name = "Dictionary"
@@ -286,9 +333,6 @@ class DictionaryOccurrence(models.Model):
     def __str__(self):
         return f"{self.dictionary} ({self.origin})"
 
-
-
-
 class Reference(models.Model):
     lesson = models.ForeignKey(
         "Lesson",
@@ -301,9 +345,21 @@ class Reference(models.Model):
     verse = models.PositiveIntegerField(null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    subtitle = models.CharField(max_length=150,default="")
+    docx_subtitle = None
+    docx_fields = (
+        {
+            "field": "reference",
+            "renderer": "reference_right",
+        },
+    )
 
     class Meta:
         ordering = ["lesson__number", "book", "chapter", "verse"]
+
+    def save(self, *args, **kwargs):
+        self.subtitle = self.reference
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.reference
@@ -320,30 +376,94 @@ class Verse(models.Model):
         on_delete=models.CASCADE,
         related_name="verses"
     )
+    subtitle = models.CharField(max_length=150,default="Write the Verse")
     number = models.PositiveIntegerField()
     original_text = models.TextField()
     masked_text = models.TextField(blank=True, editable=False)
     notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
+    docx_subtitle = "Write the Verse"
+    docx_fields = (
+    {
+        "field": "original_text",
+        "renderer": "text",
+        "transform": "clean_text",
+    },
+        {
+            "field": "masked_text",
+            "renderer": "text",
+        },
+    )
     class Meta:
         ordering = ["reference", "number"]
 
     def save(self, *args, **kwargs):
-
         self.masked_text = replace_marked_words(
             self.original_text
         )
-
         super().save(*args, **kwargs)
 
     def __str__(self):
-
         return (
             f"{self.reference} - Verse {self.number}"
         )
 
+class CompleteTheSentence(models.Model):
+    lesson = models.ForeignKey(
+        "Lesson",
+        on_delete=models.CASCADE,
+        related_name="complete_sentences"
+    )
+    subtitle = models.CharField(max_length=150,default="Complete the sentences")
+    sentences = models.TextField()
+    sentences_mask = models.TextField(blank=True)
+    image = models.ImageField(
+        upload_to="statics/activity/img/",
+        validators=[validate_image_extension],
+        null=True,
+        blank=True
+    )
+    notes = models.TextField(blank=True,null=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+    attribute_docx = (
+        "image",
+        "sentences_mask",
+    )
+    docx_fields = (
+        {
+            "field": "image",
+            "renderer": "image",
+            "width": 5.5,
+        },
+        {
+            "field": "sentences_mask",
+            "renderer": "text",
+        },
+    )
 
+    class Meta:
+        verbose_name = "Complete the Sentence"
+        verbose_name_plural = "Complete the Sentences"
+        ordering = ["lesson", "subtitle"]
+
+    def save(self, *args, **kwargs):
+        from apps.byword.services.text_mask import (
+            replace_marked_words
+        )
+        self.sentences_mask = (
+            replace_marked_words(
+                self.sentences
+            )
+        )
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"Lesson {self.lesson.number} - "
+            f"{self.subtitle}"
+        )
 
 
 class Activity(models.Model):
@@ -369,8 +489,8 @@ class ActivityItem(models.Model):
         DICTIONARY = "dictionary", "Dictionary"
         SCRAMBLE = "scramble", "Scramble Words"
         WORDSEARCH = "wordsearch", "Word Search"
-        # VERSE = "verse", "Verse"
-        # COMPLETE = "complete", "Complete the Sentences"
+        VERSE = "verse", "Verse"
+        COMPLETE = "completethesentence", "Complete the Sentences"
         # REWRITE = "rewrite", "Rewrite the Sentences"
         MUSIC = "music", "Music"
 
@@ -395,3 +515,14 @@ class ActivityItem(models.Model):
     def __str__(self):
         return f"{self.content_type}"
 
+class Crossword(models.Model):
+
+    docx_subtitle = "Crossword"
+
+    docx_fields = (
+        {
+            "field": "image",
+            "renderer": "image",
+            "width": 6,
+        },
+    )

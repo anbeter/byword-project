@@ -7,6 +7,7 @@ from apps.byword.models import (
     ScrambleWord,
     WordSearch,
     Music,
+    CompleteTheSentence,
 )
 
 
@@ -17,6 +18,7 @@ def create_default_activity(lesson):
         (Dictionary, 1),
         (ScrambleWord, 2),
         (WordSearch, 3),
+        (CompleteTheSentence, 4)
         (Music, 7),
     ]
 

@@ -26,6 +26,7 @@ from .models import Lesson, WordSearch, Word, ScrambleWord
 from .models import Music, LessonText, Dictionary, DictionaryOccurrence
 from .models import Reference, Verse
 from .models import Activity, ActivityItem
+from .models import CompleteTheSentence
 
 from django.forms.models import BaseInlineFormSet
 from django.core.exceptions import ValidationError
@@ -38,6 +39,8 @@ from apps.byword.services.lesson import format_lesson_title
 from apps.byword.services.dictionary import suggest_translation
 from apps.byword.services.wordsearch import generate_grid
 from apps.byword.services.docx_activity import generate_activity_docx
+from apps.byword.services.docx_engine.engine import generate_activity_docx_v2
+
 
 
 @admin.register(Lesson)
@@ -710,6 +713,7 @@ class ActivityItemInline(SortableInlineAdminMixin, admin.StackedInline):
                 Dictionary,
                 ScrambleWord,
                 WordSearch,
+                CompleteTheSentence,
                 Music,
                 Verse,
             ]
@@ -735,6 +739,7 @@ class ActivityAdmin(SortableAdminBase, admin.ModelAdmin):
     actions = [
         "rebuild_activity",
         "export_docx",
+        "export_docx_v2",
     ]
 
     #custom url
@@ -781,9 +786,11 @@ class ActivityAdmin(SortableAdminBase, admin.ModelAdmin):
 
         model_order = {
             Dictionary: 1,
-            ScrambleWord: 2,
-            WordSearch: 3,
-            Music: 4,
+            Verse: 2,
+            ScrambleWord: 3,
+            WordSearch: 4,
+            CompleteTheSentence: 5,
+            Music: 6,
         }
 
         for activity in queryset:
@@ -827,3 +834,53 @@ class ActivityAdmin(SortableAdminBase, admin.ModelAdmin):
         )
         doc.save(response)
         return response
+    
+    @admin.action(description="Generate DOCX V2")
+    def export_docx_v2(modeladmin, request, queryset):
+        if queryset.count() != 1:
+            modeladmin.message_user(
+                request,
+                "Select only one activity.",
+                messages.ERROR
+            )
+            return
+        activity = queryset.first()
+        doc = generate_activity_docx_v2(activity)
+        response = HttpResponse(
+            content_type=(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+        )
+        filename = (
+            f"lesson_{activity.lesson.number}.docx"
+        )
+        response["Content-Disposition"] = (
+            f'attachment; filename="{filename}"'
+        )
+        doc.save(response)
+        return response
+
+@admin.register(CompleteTheSentence)
+class CompleteTheSentenceAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "lesson",
+        "subtitle",
+        "short_sentences",
+    )
+
+    search_fields = (
+        "subtitle",
+        "sentences",
+    )
+
+    readonly_fields = (
+        "sentences_mask",
+        "created_at",
+    )
+
+    def short_sentences(self, obj):
+        if len(obj.sentences) > 30:
+            return obj.sentences[:30] + "..."
+        return obj.sentences
+    short_sentences.short_description = "Sentences"

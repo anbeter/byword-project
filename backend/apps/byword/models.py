@@ -345,7 +345,7 @@ class Reference(models.Model):
     verse = models.PositiveIntegerField(null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    subtitle = models.CharField(max_length=150,default="")
+    subtitle = models.CharField(max_length=150,null=True, blank=True)
     docx_subtitle = None
     docx_fields = (
         {
@@ -357,9 +357,9 @@ class Reference(models.Model):
     class Meta:
         ordering = ["lesson__number", "book", "chapter", "verse"]
 
-    def save(self, *args, **kwargs):
-        self.subtitle = self.reference
-        super().save(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     # self.subtitle = self.reference
+    #     super().save(*args, **kwargs)
 
     def __str__(self):
         return self.reference

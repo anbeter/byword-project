@@ -696,10 +696,6 @@ class ActivityItemInline(SortableInlineAdminMixin, admin.StackedInline):
     extra = 0
     ordering = ("order",)
     fields = ("order", "content_type",)
-    # can_delete = True ### para poder deletar
-    # readonly_fields = ("order",)
-    # show_change_link = True
-    # autocomplete_fields = ("content_type",)
 
     class Media:
         css = {
@@ -717,7 +713,6 @@ class ActivityItemInline(SortableInlineAdminMixin, admin.StackedInline):
                 Music,
                 Verse,
             ]
-            # allowed_models = [Dictionary, ScrambleWord, WordSearch, Music]
             qs = ContentType.objects.filter(
                 model__in=[m._meta.model_name for m in allowed_models]
             )
@@ -866,7 +861,8 @@ class CompleteTheSentenceAdmin(admin.ModelAdmin):
     list_display = (
         "lesson",
         "subtitle",
-        "short_sentences",
+        "created_at",
+        # "short_sentences",
     )
 
     search_fields = (
@@ -878,7 +874,7 @@ class CompleteTheSentenceAdmin(admin.ModelAdmin):
         "sentences_mask",
         "created_at",
     )
-
+    ordering = ("lesson__number","created_at")
     def short_sentences(self, obj):
         if len(obj.sentences) > 30:
             return obj.sentences[:30] + "..."

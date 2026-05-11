@@ -302,8 +302,8 @@ class Dictionary(models.Model):
     )
 
     class Meta:
-        verbose_name = "Dictionary"
-        verbose_name_plural = "Dictionary"
+        verbose_name = "Vocabulary"
+        verbose_name_plural = "Vocabulary"
 
     def __str__(self):
         return self.verb_en
@@ -402,6 +402,8 @@ class Verse(models.Model):
     )
     class Meta:
         ordering = ["reference", "number"]
+        verbose_name = "Write de Verse"
+        verbose_name_plural = "Write de Verse"
 
     def save(self, *args, **kwargs):
         self.masked_text = replace_marked_words(
@@ -523,6 +525,73 @@ class ActivityItem(models.Model):
         return (
             f"{self.content_type} - ALL"
         )
+
+
+class ActivityImage(models.Model):
+    ALIGNMENT_CHOICES = [
+        ("left", "Left"),
+        ("center", "Center"),
+        ("right", "Right"),
+    ]
+    lesson = models.ForeignKey(
+        "Lesson",
+        on_delete=models.CASCADE,
+        related_name="activity_images"
+    )
+    subtitle = models.CharField(max_length=200)
+    image = models.ImageField(upload_to="statics/activity/img_item/")
+    created_at = models.DateTimeField(auto_now_add=True)
+    # caption = models.CharField(
+    #     max_length=300,
+    #     blank=True,
+    #     null=True
+    # )
+
+    # alignment = models.CharField(
+    #     max_length=10,
+    #     choices=ALIGNMENT_CHOICES,
+    #     default="center"
+    # )
+
+    # width = models.FloatField(
+    #     default=4.5,
+    #     help_text="Width in inches"
+    # )
+
+    # height = models.FloatField(
+    #     blank=True,
+    #     null=True,
+    #     help_text="Height in inches"
+    # )
+
+
+    @property
+    def docx_subtitle(self):
+        return self.subtitle
+
+    docx_fields = [
+        {
+            "field": "image",
+            "renderer": "image",
+            # "alignment": self.alignment,
+            # "width": self.width,
+            # "height": self.height,
+            # "caption": self.caption,
+        }
+    ]
+
+    class Meta:
+        ordering = [
+            "lesson",
+            "subtitle"
+        ]
+        verbose_name = "Image Activity"
+        verbose_name_plural = "Images Activity"
+
+    def __str__(self):
+        # return self.subtitle or f"Image {self.pk}"
+        return (f"{self.subtitle}" or f"Image {self.pk}")
+
 
 class Crossword(models.Model):
 

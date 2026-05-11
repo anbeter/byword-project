@@ -27,7 +27,7 @@ from .models import Lesson, WordSearch, Word, ScrambleWord
 from .models import Music, LessonText, Dictionary, DictionaryOccurrence
 from .models import Reference, Verse
 from .models import Activity, ActivityItem
-from .models import CompleteTheSentence
+from .models import CompleteTheSentence, ActivityImage
 
 from django.forms.models import BaseInlineFormSet
 from django.core.exceptions import ValidationError
@@ -719,6 +719,7 @@ class ActivityItemInline(SortableInlineAdminMixin, admin.StackedInline):
                 CompleteTheSentence,
                 Music,
                 Verse,
+                ActivityImage,
             ]
             qs = ContentType.objects.filter(
                 model__in=[m._meta.model_name for m in allowed_models]
@@ -937,3 +938,11 @@ class CompleteTheSentenceAdmin(admin.ModelAdmin):
             return obj.sentences[:30] + "..."
         return obj.sentences
     short_sentences.short_description = "Sentences"
+
+
+@admin.register(ActivityImage)
+class ActivityImageAdmin(admin.ModelAdmin):
+    list_display = ("lesson","subtitle",)
+    search_fields = ("subtitle",)
+    list_filter = ("lesson",)
+

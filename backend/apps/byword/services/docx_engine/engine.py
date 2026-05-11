@@ -31,20 +31,20 @@ def generate_activity_docx_v2(activity):
                 .distinct()
             )
         else:
-            queryset = model.objects.filter(
-                lesson=lesson
-            )
+            if item.object_id:
+                queryset = model.objects.filter(
+                    id=item.object_id,
+                    lesson=lesson
+                )
+            else:
+                queryset = model.objects.filter(
+                    lesson=lesson
+                )
 
 
         if not queryset.exists():
             continue
-        # subtitle = getattr(
-        #     model,
-        #     "docx_subtitle",
-        #     None
-        # )
-        # if subtitle:
-        #     add_subtitle(doc, subtitle)
+
         model_subtitle = getattr(
             model,
             "docx_subtitle",

@@ -66,7 +66,8 @@ class WordSearch(models.Model):
     def __str__(self):
         if self.lesson:
             lesson_name = self.lesson.name or "Unnamed"
-            return f"{self.lesson.number} - {lesson_name}"
+            # return f"{self.lesson.number} - {lesson_name}"
+            return (self.subtitle or f"{self.lesson.number} - {lesson_name}")
         return self.name
 
     def save(self, *args, **kwargs):
@@ -171,7 +172,8 @@ class ScrambleWord(models.Model):
         return self.titulo or "Scramble avulso"
 
     def __str__(self):
-        return self.get_display_title()
+        # return self.get_display_title()
+        return (self.subtitle or self.get_display_title())
 
 
 class Music(models.Model):
@@ -214,6 +216,7 @@ class Music(models.Model):
         verbose_name_plural = "Music"
 
     def __str__(self):
+        # return self.subtitle
         return f"{self.title} - {self.author or ''}".strip()
 
     def generate_lyrics_spaces(self):
@@ -257,7 +260,9 @@ class LessonText(models.Model):
     text = models.TextField()
 
     def __str__(self):
+        # return self.subtitle
         return f"Lesson {self.lesson.number} - {self.lesson.number}"
+
 
     def get_pages(self):
         return self.text.split("#")
@@ -290,11 +295,11 @@ class Dictionary(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     docx_subtitle = "Vocabulary"
     docx_fields = (
-    {
-        "field": "vocabulary_table",
-        "renderer": "dictionary_table",
-    },
-)
+        {
+            "field": "vocabulary_table",
+            "renderer": "dictionary_table",
+        },
+    )
 
     class Meta:
         verbose_name = "Dictionary"
@@ -362,7 +367,8 @@ class Reference(models.Model):
     #     super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.reference
+        # return self.reference
+        return (self.subtitle or self.reference)
 
 
 class Verse(models.Model):
@@ -401,12 +407,14 @@ class Verse(models.Model):
         self.masked_text = replace_marked_words(
             self.original_text
         )
+
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return (
-            f"{self.reference} - Verse {self.number}"
-        )
+        # return (f"{self.reference} - Verse {self.number}")
+        # return (f"{self.lesson} or 'Reference' ")
+        return (f"{self.reference} - Verse {self.original_text}")
+
 
 class CompleteTheSentence(models.Model):
     lesson = models.ForeignKey(
@@ -484,36 +492,37 @@ class Activity(models.Model):
 
 
 class ActivityItem(models.Model):
-    class ItemType(models.TextChoices):
-        # BIBLE_REFERENCE = "bible_reference", "Bible Reference"
-        DICTIONARY = "dictionary", "Dictionary"
-        SCRAMBLE = "scramble", "Scramble Words"
-        WORDSEARCH = "wordsearch", "Word Search"
-        VERSE = "verse", "Verse"
-        COMPLETE = "completethesentence", "Complete the Sentences"
-        # REWRITE = "rewrite", "Rewrite the Sentences"
-        MUSIC = "music", "Music"
-
     activity = models.ForeignKey(
         Activity,
         on_delete=models.CASCADE,
         related_name="items"
     )
-
     order = models.PositiveIntegerField(default=0)
-    
-    # 🔥 ligação genérica (qualquer modelo)
-    content_type = models.ForeignKey(
-        ContentType,
-        on_delete=models.CASCADE
-    )
-
-
+    content_type = models.ForeignKey(ContentType,on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField(blank=True,null=True)
+    content_object = GenericForeignKey("content_type","object_id")
     class Meta:
         ordering = ["order"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "activity",
+                    "content_type",
+                    "object_id",
+                ],
+                name="unique_activity_item"
+            )
+        ]
 
     def __str__(self):
-        return f"{self.content_type}"
+        if self.object_id and self.content_object:
+            return (
+                f"{self.content_type} - "
+                f"{self.content_object}"
+            )
+        return (
+            f"{self.content_type} - ALL"
+        )
 
 class Crossword(models.Model):
 

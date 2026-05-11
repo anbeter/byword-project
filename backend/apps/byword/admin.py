@@ -7,6 +7,7 @@ from django.shortcuts import redirect
 from adminsortable2.admin import SortableAdminBase,  SortableInlineAdminMixin
 
 from django.http import FileResponse, HttpResponse
+from django.http import JsonResponse
 
 from django.conf import settings
 from django import forms
@@ -690,17 +691,23 @@ class VerseAdmin(admin.ModelAdmin):
     )
 
 
-# class ActivityItemInline(SortableInlineAdminMixin, admin.TabularInline):
+# class ActivityItemInline(SortableInlineAdminMixin, admin.TabularInline):  #StackedInline/TabularInline
 class ActivityItemInline(SortableInlineAdminMixin, admin.StackedInline):
     model = ActivityItem
     extra = 0
     ordering = ("order",)
-    fields = ("order", "content_type",)
+    fields = ("order","content_type","object_id",)
+    # readonly_fields = ()
+    # verbose_name = ""
+    # verbose_name_plural = "Items"
 
     class Media:
         css = {
             "all": ("admin/activity.css",)
         }
+        js = (
+            "admin/activity_item.js",
+        )
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "content_type":
@@ -743,16 +750,65 @@ class ActivityAdmin(SortableAdminBase, admin.ModelAdmin):
         custom_urls = [
             path(
                 "<int:activity_id>/generate-docx/",
-                self.admin_site.admin_view(self.generate_docx_view),
+                self.admin_site.admin_view(
+                    self.generate_docx_view
+                ),
                 name="byword_activity_generate_docx",
+            ),
+            path(
+                "load-content-objects/",
+                self.admin_site.admin_view(
+                    self.load_content_objects
+                ),
+                name="byword_load_content_objects",
             ),
         ]
         return custom_urls + urls
 
+    # view 
+    def load_content_objects(self, request):
+        activity_id = request.GET.get("activity_id")
+        content_type_id = request.GET.get("content_type_id")
+        if not activity_id or not content_type_id:
+            return JsonResponse([], safe=False)
+        activity = Activity.objects.get(id=activity_id)
+        lesson = activity.lesson
+        content_type = ContentType.objects.get(id=content_type_id)
+        model = content_type.model_class()
+        if model == Dictionary:
+            return JsonResponse(
+                [
+                    {
+                        "id": "",
+                        "text": "ALL"
+                    }
+                ],
+                safe=False
+            )
+        queryset = model.objects.filter(
+            lesson=lesson
+        )
+        data = []
+        for obj in queryset:
+            label = getattr(
+                obj,
+                "subtitle",
+                str(obj)
+            )
+            data.append(
+                {
+                    "id": obj.id,
+                    "text": label,
+                }
+            )
+
+        return JsonResponse(data, safe=False)
+
+
     #button view
     def generate_docx_view(self, request, activity_id):
         activity = Activity.objects.get(id=activity_id)
-        doc = generate_activity_docx(activity)
+        doc = generate_activity_docx_v2(activity)
         response = HttpResponse(
             content_type=(
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -797,6 +853,7 @@ class ActivityAdmin(SortableAdminBase, admin.ModelAdmin):
                     activity=activity,
                     order=order,
                     content_type=content_type,
+                    object_id=None,
                 )
 
         modeladmin.message_user(

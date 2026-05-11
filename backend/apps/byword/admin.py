@@ -672,9 +672,10 @@ class ReferenceAdmin(admin.ModelAdmin):
 class VerseAdmin(admin.ModelAdmin):
     list_display = (
         "reference",
-        "number",
+        # "number",
         "short_original_text",
     )
+    # exclude = ("subtitle",)
 
     def short_original_text(self, obj):
         if len(obj.original_text) > 50:
@@ -682,13 +683,8 @@ class VerseAdmin(admin.ModelAdmin):
         return obj.original_text
     short_original_text.short_description = "Original Text"
 
-    search_fields = (
-        "original_text",
-    )
-
-    readonly_fields = (
-        "masked_text",
-    )
+    search_fields = ("original_text",)
+    readonly_fields = ("masked_text",)
 
 
 # class ActivityItemInline(SortableInlineAdminMixin, admin.TabularInline):  #StackedInline/TabularInline

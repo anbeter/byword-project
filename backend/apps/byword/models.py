@@ -6,7 +6,7 @@ import re
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
-from apps.byword.services.text_mask import replace_marked_words
+from apps.byword.services.text_mask import replace_marked_words, clean_text
 from apps.byword.validators import validate_image_extension
 
 
@@ -406,6 +406,9 @@ class Verse(models.Model):
         verbose_name_plural = "Write de Verse"
 
     def save(self, *args, **kwargs):
+        # self.subtitle=clean_text(self.original_text)
+        if not self.subtitle:
+            self.subtitle = f"Write the Verse [{self.number}]"
         self.masked_text = replace_marked_words(
             self.original_text
         )
@@ -415,7 +418,8 @@ class Verse(models.Model):
     def __str__(self):
         # return (f"{self.reference} - Verse {self.number}")
         # return (f"{self.lesson} or 'Reference' ")
-        return (f"{self.reference} - Verse {self.original_text}")
+        # return (f"{self.reference} - Verse {self.original_text}")
+        return self.original_text
 
 
 class CompleteTheSentence(models.Model):

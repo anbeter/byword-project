@@ -4,9 +4,8 @@ import os
 from django.conf import settings
 
 from docx.shared import Inches
-
+from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-
 
 
 def render_text(doc, value, config):
@@ -26,6 +25,7 @@ def render_reference_right(doc, value, config):
     p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     run = p.add_run(str(value))
     run.bold = True
+    run.font.size = Pt(14)
 
 def render_title_right(doc, value, config):
     p = doc.add_paragraph()
@@ -58,11 +58,11 @@ def render_dictionary_table(doc, value, config):
     for index, item in enumerate(value):
         col = 0 if index < rows else 1
         row = index if index < rows else index - rows
-        # underline = "_" * ((len(item.translation) * 3) + 2)
-        table.cell(
-            row,
-            col
-        ).text = f"{item.verb_en}"
+        # ####underline = "_" * ((len(item.translation) * 3) + 2)
+        paragraph = table.cell(row,col).paragraphs[0]
+        paragraph.alignment = (WD_ALIGN_PARAGRAPH.LEFT)
+        run = paragraph.add_run(f"{item.verb_en}")
+        run.font.size = Pt(14)
 
 import math
 
@@ -81,11 +81,11 @@ def render_scramble_table(doc, value, config):
     for index, word in enumerate(words):
         col = 0 if index < rows else 1
         row = index if index < rows else index - rows
-        # underline = "_" * ((len(word) * 3) + 2)
-        table.cell(
-            row,
-            col
-        ).text = f"{word}"
+        # ###underline = "_" * ((len(word) * 3) + 2)
+        paragraph = table.cell(row,col).paragraphs[0]
+        paragraph.alignment = (WD_ALIGN_PARAGRAPH.LEFT)
+        run = paragraph.add_run(f"{word}")
+        run.font.size = Pt(14)
 
 def render_wordsearch_image(doc,value,config=None):
     if not value:

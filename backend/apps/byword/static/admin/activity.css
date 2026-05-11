@@ -55,7 +55,11 @@
 .inline-related input[type="checkbox"] {
     transform: scale(0.9);
 }
-/*
+
+.dynamic-object-select {
+    min-width: 260px;
+}
+
 .field-object_id label {
     display: none;
 }
@@ -63,7 +67,3 @@
 .field-object_id input {
     display: none;
 }
-
-.dynamic-object-select {
-    width: 260px;
-}*/

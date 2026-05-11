@@ -72,9 +72,26 @@ function initializeRow(row) {
                     'dynamic-object-select'
                 );
 
-                objectIdInput.parentNode.appendChild(
+                const wrapper =
+                    document.createElement('div');
+
+                wrapper.style.display = 'flex';
+                wrapper.style.alignItems = 'center';
+                wrapper.style.gap = '8px';
+
+                contentTypeSelect.parentNode.insertBefore(
+                    wrapper,
+                    contentTypeSelect
+                );
+
+                wrapper.appendChild(
+                    contentTypeSelect
+                );
+
+                wrapper.appendChild(
                     select
                 );
+                /* */
 
                 objectIdInput.style.display =
                     'none';

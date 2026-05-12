@@ -8,7 +8,7 @@ from django.contrib.contenttypes.models import ContentType
 
 from apps.byword.services.text_mask import replace_marked_words, clean_text
 from apps.byword.validators import validate_image_extension
-
+from apps.byword.services.scramble_sentences import scramble_sentences
 
 class Lesson(models.Model):
     number = models.PositiveIntegerField(unique=True)
@@ -431,6 +431,13 @@ class CompleteTheSentence(models.Model):
     subtitle = models.CharField(max_length=150,default="Complete the sentences")
     sentences = models.TextField()
     sentences_mask = models.TextField(blank=True)
+    generate_hints = models.BooleanField(
+        default=False,
+        help_text=(
+            "Generate shuffled hints from "
+            "words/phrases marked with *asterisks*."
+        )
+    )
     image = models.ImageField(
         upload_to="statics/activity/img/",
         validators=[validate_image_extension],
@@ -464,13 +471,15 @@ class CompleteTheSentence(models.Model):
 
     def save(self, *args, **kwargs):
         from apps.byword.services.text_mask import (
-            replace_marked_words
+            replace_marked_words, 
+            generate_scrambled_hints,
         )
-        self.sentences_mask = (
-            replace_marked_words(
-                self.sentences
-            )
-        )
+        masked_text = replace_marked_words(self.sentences)
+        if self.generate_hints:
+            hints = generate_scrambled_hints(self.sentences)
+            self.sentences_mask = (f"{hints}\n\n{masked_text}")
+        else:
+            self.sentences_mask = masked_text
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -486,6 +495,7 @@ class Activity(models.Model):
         on_delete=models.CASCADE,
         related_name="activity"
     )
+    generated_file = models.FileField(upload_to="statics/activity/generated/",blank=True,null=True)
 
     @property
     def title(self):
@@ -608,3 +618,42 @@ class Crossword(models.Model):
             "width": 6,
         },
     )
+
+
+class ScrambleSentence(models.Model):
+    lesson = models.ForeignKey(
+        "Lesson",
+        on_delete=models.CASCADE,
+        related_name="scramble_sentences"
+    )
+    subtitle = models.CharField(max_length=150,db_default="Scramble Sentences",blank=True,null=True)
+    original_text = models.TextField()
+    scrambled_text = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    docx_subtitle = "Scramble Sentences"
+    docx_fields = (
+        {
+            "field": "scrambled_text",
+            "renderer": "scramble_sentences",
+        },
+    )
+
+    class Meta:
+        verbose_name = "Scramble Sentence"
+        verbose_name_plural = "Scramble Sentences"
+
+    def __str__(self):
+        if self.subtitle:
+            return self.subtitle
+        return f"Scramble Sentence #{self.id}"
+
+    def save(self, *args, **kwargs):
+        if not self.subtitle:
+            self.subtitle = self.original_text[:30]
+        self.scrambled_text = (
+            scramble_sentences(
+                self.original_text
+            )
+        )
+
+        super().save(*args, **kwargs)

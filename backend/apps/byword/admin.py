@@ -23,7 +23,7 @@ from docx import Document
 from docx.shared import Inches, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-from .models import Lesson, WordSearch, Word, ScrambleWord
+from .models import Lesson, WordSearch, Word, ScrambleWord, ScrambleSentence
 from .models import Music, LessonText, Dictionary, DictionaryOccurrence
 from .models import Reference, Verse
 from .models import Activity, ActivityItem
@@ -39,7 +39,6 @@ from .services.png import generate_png
 from apps.byword.services.lesson import format_lesson_title
 from apps.byword.services.dictionary import suggest_translation
 from apps.byword.services.wordsearch import generate_grid
-from apps.byword.services.docx_activity import generate_activity_docx
 from apps.byword.services.docx_engine.engine import generate_activity_docx_v2
 
 
@@ -716,6 +715,7 @@ class ActivityItemInline(SortableInlineAdminMixin, admin.StackedInline):
                 Music,
                 Verse,
                 ActivityImage,
+                ScrambleSentence,
             ]
             qs = ContentType.objects.filter(
                 model__in=[m._meta.model_name for m in allowed_models]
@@ -737,9 +737,10 @@ class ActivityAdmin(SortableAdminBase, admin.ModelAdmin):
     inlines = [ActivityItemInline]
     actions = [
         "rebuild_activity",
-        "export_docx",
+        # "export_docx",
         "export_docx_v2",
     ]
+    # readonly_fields = ("generated_file",)
 
     #custom url
     def get_urls(self):
@@ -836,9 +837,10 @@ class ActivityAdmin(SortableAdminBase, admin.ModelAdmin):
             Dictionary: 1,
             Verse: 2,
             ScrambleWord: 3,
-            WordSearch: 4,
-            CompleteTheSentence: 5,
-            Music: 6,
+            ScrambleSentence: 4,
+            WordSearch: 5,
+            CompleteTheSentence: 6,
+            Music: 7,
         }
 
         for activity in queryset:
@@ -859,30 +861,30 @@ class ActivityAdmin(SortableAdminBase, admin.ModelAdmin):
             messages.SUCCESS
         )
 
-    @admin.action(description="Generate DOCX")
-    def export_docx(modeladmin, request, queryset):
-        if queryset.count() != 1:
-            modeladmin.message_user(
-                request,
-                "Select only one activity.",
-                messages.ERROR
-            )
-            return
-        activity = queryset.first()
-        doc = generate_activity_docx(activity)
-        response = HttpResponse(
-            content_type=(
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            )
-        )
-        filename = (
-            f"lesson_{activity.lesson.number}.docx"
-        )
-        response["Content-Disposition"] = (
-            f'attachment; filename="{filename}"'
-        )
-        doc.save(response)
-        return response
+    # @admin.action(description="Generate DOCX")
+    # def export_docx(modeladmin, request, queryset):
+    #     if queryset.count() != 1:
+    #         modeladmin.message_user(
+    #             request,
+    #             "Select only one activity.",
+    #             messages.ERROR
+    #         )
+    #         return
+    #     activity = queryset.first()
+    #     doc = generate_activity_docx(activity)
+    #     response = HttpResponse(
+    #         content_type=(
+    #             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    #         )
+    #     )
+    #     filename = (
+    #         f"lesson_{activity.lesson.number}.docx"
+    #     )
+    #     response["Content-Disposition"] = (
+    #         f'attachment; filename="{filename}"'
+    #     )
+    #     doc.save(response)
+    #     return response
     
     @admin.action(description="Generate DOCX V2")
     def export_docx_v2(modeladmin, request, queryset):
@@ -942,3 +944,15 @@ class ActivityImageAdmin(admin.ModelAdmin):
     search_fields = ("subtitle",)
     list_filter = ("lesson",)
 
+
+@admin.register(ScrambleSentence)
+class ScrambleSentenceAdmin(admin.ModelAdmin):
+    list_display = (
+        # "id",
+        "lesson",
+        "subtitle",
+    )
+    search_fields = (
+        "subtitle",
+        "original_text",
+    )

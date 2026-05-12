@@ -1,4 +1,5 @@
 import re
+import random
 
 
 def replace_marked_words(
@@ -56,3 +57,10 @@ def clean_text(text, markers="**"):
 
     return re.sub(pattern,r"\1",text)
 
+def generate_scrambled_hints(text):
+    hints = re.findall(
+        r"\*(.*?)\*",
+        text
+    )
+    random.shuffle(hints)
+    return " | ".join(hints)

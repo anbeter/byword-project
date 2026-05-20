@@ -177,12 +177,14 @@ class ScrambleWord(models.Model):
 
 
 class Music(models.Model):
-    number_lesson = models.PositiveIntegerField(unique=True)
+    # number_lesson = models.PositiveIntegerField(unique=True)
     subtitle = models.CharField(max_length=150,default="Music")
     lesson = models.ForeignKey(
         "Lesson",
         on_delete=models.CASCADE,
-        related_name="musics"
+        related_name="musics",
+        blank=True,
+        null=True
     )
 
     title = models.CharField(max_length=150)
@@ -192,6 +194,10 @@ class Music(models.Model):
     spotify_url = models.URLField(blank=True)
 
     lyrics = models.TextField()
+    ignored_words = models.TextField(
+        blank=True,
+        help_text="Words separated by spaces that will be ignored."
+    )
     lyrics_spaces = models.TextField(blank=True)
 
     attribute_docx = (
@@ -238,15 +244,16 @@ class Music(models.Model):
 
         super().save(*args, **kwargs)
 
-        from apps.byword.services.dictionary import sync_dictionary
+        if self.lesson:
+            from apps.byword.services.dictionary import sync_dictionary
 
-        sync_dictionary(
-            old_text=old_text,
-            new_text=self.lyrics,
-            instance=self,
-            origin="music",
-            lesson=self.lesson,
-        )
+            sync_dictionary(
+                old_text=old_text,
+                new_text=self.lyrics,
+                instance=self,
+                origin="music",
+                lesson=self.lesson,
+            )
 
 
 class LessonText(models.Model):

@@ -12,6 +12,7 @@ from django.http import JsonResponse
 from django.conf import settings
 from django import forms
 from django.db.models import Min
+from django.utils.html import format_html
 
 import os
 import csv
@@ -40,6 +41,7 @@ from apps.byword.services.lesson import format_lesson_title
 from apps.byword.services.dictionary import suggest_translation
 from apps.byword.services.wordsearch import generate_grid
 from apps.byword.services.docx_engine.engine import generate_activity_docx_v2
+from apps.byword.services.music_analysis import analyze_music_by_lessons
 
 
 
@@ -292,14 +294,114 @@ class ScrambleWordAdmin(admin.ModelAdmin):
         return response
 
 
+# =========================
+# Music
+# =========================
 @admin.register(Music)
 class MusicAdmin(admin.ModelAdmin):
-    list_display = ("title", "author", "lesson")
-    search_fields = ("title", "author")
+    list_display = (
+        "title",
+        "author",
+        "lesson",
+        "analysis_summary",
+    )
+    search_fields = ("title","author","lyrics",)
     list_filter = ("lesson__number",)
-
     readonly_fields = ("lyrics_spaces",)
+    actions = (
+        "analyze_selected_musics",
+    )
+    fieldsets = (
+        (
+            "Music Information",
+            {
+                "fields": (
+                    "lesson",
+                    "title",
+                    "subtitle",
+                    "author",
+                )
+            },
+        ),
+        (
+            "Links",
+            {
+                "fields": (
+                    "youtube_url",
+                    "spotify_url",
+                )
+            },
+        ),
+        (
+            "Lyrics",
+            {
+                "fields": (
+                    "lyrics",
+                    "ignored_words",
+                    "lyrics_spaces",
+                )
+            },
+        ),
+    )
 
+    @admin.display(description="Analysis")
+    def analysis_summary(self, obj):
+        results = analyze_music_by_lessons(obj)
+
+        if not results:
+            return "-"
+
+        best = results[-1]
+
+        count = best["new_words_count"]
+
+        if count <= 7:
+            return format_html(
+                '<span style="color: green; font-weight: bold;">'
+                'Lesson {} → {} new words'
+                "</span>",
+                best["lesson"],
+                count,
+            )
+
+        return format_html(
+            '<span style="color: orange;">'
+            '{} new words'
+            "</span>",
+            count,
+        )
+
+    @admin.action(description="Analyze selected musics")
+    def analyze_selected_musics(self, request, queryset):
+        for music in queryset:
+            results = analyze_music_by_lessons(music)
+
+            lines = [
+                f"Music: {music.title}"
+            ]
+
+            for result in results:
+                lesson = result["lesson"]
+                count = result["new_words_count"]
+
+                words_preview = ", ".join(
+                    result["new_words"][:15]
+                )
+
+                if len(result["new_words"]) > 15:
+                    words_preview += "..."
+
+                lines.append(
+                    f"Lesson {lesson}: "
+                    f"{count} "
+                    f"({words_preview})"
+                )
+
+            self.message_user(
+                request,
+                " | ".join(lines),
+                level=messages.INFO,
+            )
 
 # =========================
 # LessonText

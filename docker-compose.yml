@@ -15,8 +15,10 @@ services:
     ports:
       - "8000:8000"
 
+    # volumes:
+    #   - ./backen:/app
     volumes:
-      - .:/app
+      - ${PWD}/backend:/app
 
     command: >
       sh -c "

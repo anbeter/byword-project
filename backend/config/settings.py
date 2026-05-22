@@ -1,5 +1,6 @@
 import os
 from datetime import timedelta
+from pathlib import Path
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'unsafe-secret')
 DEBUG = os.getenv('DEBUG', '1') == '1'
@@ -36,12 +37,16 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -66,14 +71,16 @@ TEMPLATES = [
     },
 ]
 
-DEBUG = True
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 ROOT_URLCONF = 'config.urls'
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'staticfiles')
+# STATIC_ROOT = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'staticfiles')
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 WSGI_APPLICATION = 'config.wsgi.application'
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'media')
+# MEDIA_ROOT = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'media')
+MEDIA_ROOT = BASE_DIR / 'media'
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=2),

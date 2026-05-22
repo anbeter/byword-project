@@ -1,6 +1,6 @@
 services:
   backend:
-    build: .
+    build: 
       context: ./backend
 
     container_name: byword_backend

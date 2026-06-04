@@ -43,7 +43,10 @@ from apps.byword.services.wordsearch import generate_grid
 from apps.byword.services.docx_engine.engine import generate_activity_docx_v2
 from apps.byword.services.music_analysis import analyze_music_by_lessons
 
-
+from apps.byword.admin_actions.dictionary_actions import (
+    fill_pronunciation,
+    fill_syllable_separation,
+)
 
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
@@ -485,10 +488,17 @@ class FirstLessonFilter(SimpleListFilter):
 class DictionaryAdmin(admin.ModelAdmin):
     list_display = (
         "verb_en",
+        "syllable_separation",
+        "pronunciation",
         "translation",
         "first_occurrence",
         "created_at",
     )
+
+    # readonly_fields = (
+    #     "syllable_separation",
+    #     "pronunciation",
+    # )
 
     actions = [
         "translate_missing",
@@ -496,6 +506,8 @@ class DictionaryAdmin(admin.ModelAdmin):
         "export_dictionary_xlsx",
         "create_scramble_from_words",
         "create_wordsearch_from_words",
+        fill_syllable_separation,
+        fill_pronunciation,
         "rebuild_dictionary_from_lessons",
     ]
 
@@ -743,7 +755,7 @@ class DictionaryAdmin(admin.ModelAdmin):
         return redirect(url)
         
 
-    search_fields = ("verb_en", "translation")
+    search_fields = ("verb_en", "translation", "syllable_separation")
 
     # first_lesson.short_description = "First Lesson"
     # search_fields = ("verb_en", "translation")

@@ -297,9 +297,23 @@ class LessonText(models.Model):
 
 class Dictionary(models.Model):
     verb_en = models.CharField(max_length=150, unique=True)
+    syllable_separation = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text="English syllable separation. Example: sep.a.rate"
+    )#editable=False
+    pronunciation = models.CharField(
+        max_length=300,
+        blank=True,
+        null=True,
+        help_text="Word pronunciation"
+    )
     translation = models.CharField(max_length=270, blank=True)
     subtitle = models.CharField(max_length=150,default="Vocabulary")
     created_at = models.DateTimeField(auto_now_add=True)
+    is_verb = models.BooleanField(null=True,blank=True,default=None,help_text="Indicates whether the word is a verb.")
+    is_regular_verb = models.BooleanField(null=True,blank=True,default=None,help_text="Indicates whether the verb is regular.")
     docx_subtitle = "Vocabulary"
     docx_fields = (
         {

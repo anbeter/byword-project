@@ -27,3 +27,16 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Migrations
+**/migrations/0*.py
+**/migrations/1*.py
+**/migrations/2*.py
+**/migrations/3*.py
+**/migrations/4*.py
+**/migrations/5*.py
+**/migrations/6*.py
+**/migrations/7*.py
+**/migrations/8*.py
+**/migrations/9*.py
+
+

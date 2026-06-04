@@ -8,6 +8,9 @@ from apps.byword.services.pronunciation import (
     fetch_pronunciation,
 )
 
+from apps.byword.services.tts import (
+    generate_pronunciation_audio,
+)
 
 def fill_syllable_separation(
     modeladmin,
@@ -110,4 +113,57 @@ def fill_pronunciation(
 
 fill_pronunciation.short_description = (
     "Fill pronunciation"
+)
+
+
+def generate_audio(
+    modeladmin,
+    request,
+    queryset
+):
+    updated = 0
+    not_found = []
+
+    for obj in queryset:
+
+        try:
+
+            normal = generate_pronunciation_audio(
+                obj,
+                slow=False,
+            )
+
+            slow = generate_pronunciation_audio(
+                obj,
+                slow=True,
+            )
+
+            if normal or slow:
+                updated += 1
+            else:
+                not_found.append(
+                    obj.verb_en
+                )
+
+        except Exception:
+            not_found.append(
+                obj.verb_en
+            )
+
+    if not_found:
+        modeladmin.message_user(
+            request,
+            f"Not found: {', '.join(not_found)}",
+            level=messages.WARNING
+        )
+
+    modeladmin.message_user(
+        request,
+        f"{updated} audios generated.",
+        level=messages.SUCCESS
+    )
+
+
+generate_audio.short_description = (
+    "Generate pronunciation audio"
 )

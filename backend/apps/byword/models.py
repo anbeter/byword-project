@@ -309,6 +309,8 @@ class Dictionary(models.Model):
         null=True,
         help_text="Word pronunciation"
     )
+    pronunciation_audio = models.FileField(upload_to="pronunciations/",blank=True,null=True,)
+    pronunciation_audio_slow = models.FileField(upload_to="pronunciations/slow/",blank=True,null=True,)
     translation = models.CharField(max_length=270, blank=True)
     subtitle = models.CharField(max_length=150,default="Vocabulary")
     created_at = models.DateTimeField(auto_now_add=True)

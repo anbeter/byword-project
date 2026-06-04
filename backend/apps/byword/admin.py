@@ -43,9 +43,14 @@ from apps.byword.services.wordsearch import generate_grid
 from apps.byword.services.docx_engine.engine import generate_activity_docx_v2
 from apps.byword.services.music_analysis import analyze_music_by_lessons
 
+### imports 2 dictionary
+from django.utils.html import format_html
 from apps.byword.admin_actions.dictionary_actions import (
     fill_pronunciation,
     fill_syllable_separation,
+)
+from apps.byword.admin_actions.dictionary_actions import (
+    generate_audio,
 )
 
 @admin.register(Lesson)
@@ -486,19 +491,38 @@ class FirstLessonFilter(SimpleListFilter):
 # =========================
 @admin.register(Dictionary)
 class DictionaryAdmin(admin.ModelAdmin):
-    list_display = (
+    """list_display = (
         "verb_en",
         "syllable_separation",
         "pronunciation",
         "translation",
+        "audio_player",
         "first_occurrence",
         "created_at",
-    )
+    )"""
 
-    # readonly_fields = (
-    #     "syllable_separation",
-    #     "pronunciation",
-    # )
+    fieldsets = (
+        (
+            "Language",
+            {
+                "fields": (
+                    "verb_en",
+                    "translation",
+                )
+            }
+        ),
+
+        (
+            "Pronunciation",
+            {
+                "fields": (
+                    "pronunciation",
+                    "syllable_separation",
+                    "audio_player",
+                )
+            }
+        ),
+    )
 
     actions = [
         "translate_missing",
@@ -508,8 +532,44 @@ class DictionaryAdmin(admin.ModelAdmin):
         "create_wordsearch_from_words",
         fill_syllable_separation,
         fill_pronunciation,
+        generate_audio,
         "rebuild_dictionary_from_lessons",
     ]
+
+    def audio_player(self, obj):
+        html = ""
+        if obj.pronunciation_audio:
+            html += f"""
+            <div>
+                Normal<br>
+                <audio controls>
+                    <source
+                        src="{obj.pronunciation_audio.url}"
+                        type="audio/mpeg"
+                    >
+                </audio>
+            </div>
+            """
+
+        if obj.pronunciation_audio_slow:
+            html += f"""
+            <div style="margin-top:10px;">
+                Slow<br>
+                <audio controls>
+                    <source
+                        src="{obj.pronunciation_audio_slow.url}"
+                        type="audio/mpeg"
+                    >
+                </audio>
+            </div>
+            """
+
+        return format_html(html)
+
+
+    audio_player.short_description = (
+        "Audio"
+    )
 
     def rebuild_dictionary_from_lessons(modeladmin, request, queryset):
         from apps.byword.services.dictionary import sync_dictionary
@@ -760,6 +820,8 @@ class DictionaryAdmin(admin.ModelAdmin):
     # first_lesson.short_description = "First Lesson"
     # search_fields = ("verb_en", "translation")
     # readonly_fields = ("content_type", "object_id", "content_object", "created_at")
+    # readonly_fields = ("syllable_separation","pronunciation",)
+    readonly_fields = ("audio_player",)
     # ordering = ("lesson_number", "verb_en",)
     list_per_page = 100
     list_filter = (FirstLessonFilter,)

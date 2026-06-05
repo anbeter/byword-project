@@ -6,6 +6,18 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'unsafe-secret')
 DEBUG = os.getenv('DEBUG', '1') == '1'
 ALLOWED_HOSTS = ['*']
 
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8000",
+    "http://192.168.100.49:8000",
+    "http://byword.miktam.com.br",
+    "https://byword.miktam.com.br",
+]
+
+SECURE_PROXY_SSL_HEADER = (
+    "HTTP_X_FORWARDED_PROTO",
+    "https",
+)
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',

@@ -511,7 +511,6 @@ class DictionaryAdmin(admin.ModelAdmin):
                 )
             }
         ),
-
         (
             "Pronunciation",
             {
@@ -520,6 +519,15 @@ class DictionaryAdmin(admin.ModelAdmin):
                     "pronunciation",
                     "syllable_separation",
                     "audio_player",
+                )
+            }
+        ),
+        (
+            "Edit Pronunciation",
+            {
+                "classes": ("collapse", "wide",),
+                "fields": (
+                    "pronunciation_audio",
                 )
             }
         ),
@@ -808,7 +816,7 @@ class DictionaryAdmin(admin.ModelAdmin):
     # search_fields = ("verb_en", "translation")
     # readonly_fields = ("content_type", "object_id", "content_object", "created_at")
     # readonly_fields = ("syllable_separation","pronunciation",)
-    # readonly_fields = ("audio_player",)
+    readonly_fields = ("audio_player",)
     # ordering = ("lesson_number", "verb_en",)
     list_per_page = 100
     list_filter = (FirstLessonFilter,)

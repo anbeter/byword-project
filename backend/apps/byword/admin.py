@@ -446,7 +446,7 @@ class LessonTextAdmin(LessonNumberMixin, admin.ModelAdmin):
 class DictionaryOccurrenceInline(admin.TabularInline):
     model = DictionaryOccurrence
     extra = 0
-
+    classes = ("collapse",) # padrão fica recolhiro, quando clica ele abre.
     readonly_fields = ("lesson", "lesson_number", "origin", "content_object")
     ordering = ("lesson__number",)
 
@@ -491,7 +491,7 @@ class FirstLessonFilter(SimpleListFilter):
 # =========================
 @admin.register(Dictionary)
 class DictionaryAdmin(admin.ModelAdmin):
-    """list_display = (
+    list_display = (
         "verb_en",
         "syllable_separation",
         "pronunciation",
@@ -499,7 +499,7 @@ class DictionaryAdmin(admin.ModelAdmin):
         "audio_player",
         "first_occurrence",
         "created_at",
-    )"""
+    )
 
     fieldsets = (
         (
@@ -515,6 +515,7 @@ class DictionaryAdmin(admin.ModelAdmin):
         (
             "Pronunciation",
             {
+                # "classes": ("collapse", "wide",),
                 "fields": (
                     "pronunciation",
                     "syllable_separation",
@@ -541,23 +542,9 @@ class DictionaryAdmin(admin.ModelAdmin):
         if obj.pronunciation_audio:
             html += f"""
             <div>
-                Normal<br>
                 <audio controls>
                     <source
                         src="{obj.pronunciation_audio.url}"
-                        type="audio/mpeg"
-                    >
-                </audio>
-            </div>
-            """
-
-        if obj.pronunciation_audio_slow:
-            html += f"""
-            <div style="margin-top:10px;">
-                Slow<br>
-                <audio controls>
-                    <source
-                        src="{obj.pronunciation_audio_slow.url}"
                         type="audio/mpeg"
                     >
                 </audio>
@@ -821,7 +808,7 @@ class DictionaryAdmin(admin.ModelAdmin):
     # search_fields = ("verb_en", "translation")
     # readonly_fields = ("content_type", "object_id", "content_object", "created_at")
     # readonly_fields = ("syllable_separation","pronunciation",)
-    readonly_fields = ("audio_player",)
+    # readonly_fields = ("audio_player",)
     # ordering = ("lesson_number", "verb_en",)
     list_per_page = 100
     list_filter = (FirstLessonFilter,)

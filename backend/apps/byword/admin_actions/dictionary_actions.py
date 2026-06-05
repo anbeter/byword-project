@@ -116,35 +116,23 @@ fill_pronunciation.short_description = (
 )
 
 
-def generate_audio(
-    modeladmin,
-    request,
-    queryset
-):
+def generate_audio(modeladmin,request,queryset):
     updated = 0
     not_found = []
 
     for obj in queryset:
-
         try:
-
-            normal = generate_pronunciation_audio(
-                obj,
-                slow=False,
+            result = (
+                generate_pronunciation_audio(
+                    obj
+                )
             )
-
-            slow = generate_pronunciation_audio(
-                obj,
-                slow=True,
-            )
-
-            if normal or slow:
+            if result:
                 updated += 1
             else:
                 not_found.append(
                     obj.verb_en
                 )
-
         except Exception:
             not_found.append(
                 obj.verb_en
@@ -162,8 +150,3 @@ def generate_audio(
         f"{updated} audios generated.",
         level=messages.SUCCESS
     )
-
-
-generate_audio.short_description = (
-    "Generate pronunciation audio"
-)

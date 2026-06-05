@@ -53,6 +53,7 @@ from apps.byword.admin_actions.dictionary_actions import (
     generate_audio,
 )
 
+
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
     list_display = ("number", "name")
